@@ -55,16 +55,32 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
   const validate = (data: typeof formData) => {
     const newErrors: { [key: string]: string } = {};
     if (!data.date) newErrors.date = "Tarikh diperlukan";
-    if (!data.amount || isNaN(parseFloat(data.amount)) || parseFloat(data.amount) <= 0) {
+    
+    const amt = parseFloat(data.amount);
+    if (!data.amount) {
+        newErrors.amount = "Jumlah diperlukan";
+    } else if (isNaN(amt) || amt <= 0) {
       newErrors.amount = "Jumlah mesti lebih daripada 0";
     }
-    if (!data.name.trim()) newErrors.name = "Nama diperlukan";
+    
+    if (!data.name.trim()) {
+        newErrors.name = "Nama pihak diperlukan";
+    } else if (data.name.trim().length < 2) {
+        newErrors.name = "Nama terlalu pendek";
+    }
+
+    if (!data.category.trim()) {
+        newErrors.category = "Kategori diperlukan";
+    }
+
     return newErrors;
   };
 
   const handleChange = (field: keyof typeof formData, value: string) => {
     const newData = { ...formData, [field]: value };
     setFormData(newData);
+    
+    // Immediate validation after first interaction
     if (touched[field as string]) {
       const currentErrors = validate(newData);
       setErrors(prev => ({ ...prev, [field as string]: currentErrors[field as string] || '' }));
@@ -81,7 +97,7 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
     e.preventDefault();
     const validationErrors = validate(formData);
     setErrors(validationErrors);
-    setTouched({ date: true, amount: true, name: true });
+    setTouched({ date: true, amount: true, name: true, category: true });
 
     if (Object.keys(validationErrors).length === 0) {
       onSave({
@@ -90,12 +106,6 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
       });
       onClose();
     }
-  };
-
-  const getTitle = () => {
-    if (mode === 'edit') return 'Kemaskini Transaksi';
-    if (mode === 'copy') return 'Salin Transaksi';
-    return 'Rekod Transaksi';
   };
 
   const isIncome = formData.type === 'in';
@@ -108,7 +118,7 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
       iconText: 'text-emerald-600',
       focusRing: 'focus:ring-emerald-500/10',
       focusBorder: 'focus:border-emerald-500',
-      btn: 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20 focus:ring-emerald-500/20',
+      btn: 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20',
       pillActive: 'bg-emerald-600 text-white border-emerald-600 shadow-lg'
   } : {
       gradient: 'from-rose-600 to-rose-500',
@@ -118,20 +128,27 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
       iconText: 'text-rose-600',
       focusRing: 'focus:ring-rose-500/10',
       focusBorder: 'focus:border-rose-500',
-      btn: 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20 focus:ring-rose-500/20',
+      btn: 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20',
       pillActive: 'bg-rose-600 text-white border-rose-600 shadow-lg'
+  };
+
+  const getInputClass = (field: string) => {
+    const isTouched = touched[field];
+    const hasError = !!errors[field];
+    const isValid = isTouched && !hasError;
+
+    return `w-full bg-slate-50 border-2 rounded-2xl px-6 py-4 pl-12 text-sm font-bold outline-none transition-all duration-300 ${
+      hasError 
+        ? 'border-rose-300 bg-rose-50 text-rose-700 focus:border-rose-500 focus:ring-8 focus:ring-rose-500/10' 
+        : isValid
+            ? 'border-emerald-200 bg-emerald-50/30 text-slate-800 focus:border-emerald-500 focus:ring-8 focus:ring-emerald-500/10'
+            : `border-slate-100 ${theme.focusBorder} focus:bg-white focus:ring-8 ${theme.focusRing} text-slate-800`
+    }`;
   };
 
   const commonCategories = isIncome 
     ? ["Legal Fee", "Retainer", "Consultation", "Reimbursement"]
     : ["Filing Fee", "Office Supplies", "Utilities", "Mileage", "Salary", "Rental", "Printing", "Refreshments"];
-
-  const getInputClass = (field: string) => 
-    `w-full bg-slate-50 border-2 rounded-2xl px-6 py-4 pl-12 text-sm font-bold outline-none transition-all duration-300 ${
-      errors[field] 
-        ? 'border-rose-300 focus:border-rose-500 focus:bg-white focus:ring-8 focus:ring-rose-500/10 bg-rose-50 text-rose-700' 
-        : `border-slate-100 ${theme.focusBorder} focus:bg-white focus:ring-8 ${theme.focusRing} text-slate-800`
-    }`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
@@ -144,7 +161,7 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
               {isIncome ? <ArrowUpCircle className="w-8 h-8" strokeWidth={2.5} /> : <ArrowDownCircle className="w-8 h-8" strokeWidth={2.5} />}
             </div>
             <div>
-              <p className="text-2xl font-black tracking-tighter uppercase">{getTitle()}</p>
+              <p className="text-2xl font-black tracking-tighter uppercase">{mode === 'edit' ? 'Kemaskini' : mode === 'copy' ? 'Salin' : 'Rekod'} Transaksi</p>
               <p className="text-[10px] text-white/70 font-black uppercase tracking-[0.2em]">{isIncome ? 'Terimaan Wang' : 'Pembayaran / Belanja'}</p>
             </div>
           </div>
@@ -184,23 +201,34 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
                   step="0.01"
                   placeholder="0.00"
                   className={`w-full bg-slate-50 border-2 rounded-[1.5rem] p-6 pl-20 text-4xl font-black outline-none transition-all duration-300 placeholder-slate-200 ${
-                    errors.amount 
+                    errors.amount && touched.amount
                       ? 'border-rose-400 bg-rose-50 text-rose-800' 
-                      : `border-slate-100 text-slate-900 ${theme.focusBorder} focus:bg-white focus:ring-8 ${theme.focusRing}`
+                      : touched.amount && !errors.amount
+                        ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
+                        : `border-slate-100 text-slate-900 ${theme.focusBorder} focus:bg-white focus:ring-8 ${theme.focusRing}`
                   }`}
                   value={formData.amount}
                   onChange={e => handleChange('amount', e.target.value)}
                   onBlur={() => handleBlur('amount')}
                 />
+                {touched.amount && !errors.amount && (
+                    <div className="absolute right-6 top-1/2 -translate-y-1/2 text-emerald-500">
+                        <Check className="w-6 h-6" strokeWidth={3} />
+                    </div>
+                )}
               </div>
-              {errors.amount && <p className="text-xs text-rose-600 mt-2 font-bold px-4 flex items-center gap-2 animate-bounce"><AlertCircle className="w-4 h-4" /> {errors.amount}</p>}
+              {errors.amount && touched.amount && (
+                  <p className="text-xs text-rose-600 mt-2 font-bold px-4 flex items-center gap-2 animate-in slide-in-from-top-1">
+                      <AlertCircle className="w-4 h-4" /> {errors.amount}
+                  </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-2">Tarikh</label>
-                <div className="relative group">
-                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                <div className="relative">
+                  <Calendar className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${touched.date && !errors.date ? 'text-emerald-500' : 'text-slate-400'}`} />
                   <input type="date" className={getInputClass('date')} value={formData.date} onChange={e => handleChange('date', e.target.value)} onBlur={() => handleBlur('date')} />
                 </div>
               </div>
@@ -223,29 +251,31 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
             <div className="space-y-3">
               <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-2">Nama Pihak (Payer / Payee)</label>
               <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                <User className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${touched.name && !errors.name ? 'text-emerald-500' : 'text-slate-400'}`} />
                 <input type="text" placeholder="Contoh: TNB / Ali Abu" className={getInputClass('name')} value={formData.name} onChange={e => handleChange('name', e.target.value)} onBlur={() => handleBlur('name')} />
+                {touched.name && !errors.name && <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" strokeWidth={3} />}
               </div>
-              {errors.name && <p className="text-xs text-rose-600 font-bold px-4 flex items-center gap-2"><AlertCircle className="w-4 h-4" /> {errors.name}</p>}
+              {errors.name && touched.name && <p className="text-xs text-rose-600 font-bold px-4 flex items-center gap-2"><AlertCircle className="w-4 h-4" /> {errors.name}</p>}
             </div>
 
             <div className="space-y-4">
               <div className="space-y-3">
                 <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-2">Kategori Transaksi</label>
                 <div className="relative">
-                  <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-                  <input list="categories" placeholder="Pilih atau taip..." className={getInputClass('category')} value={formData.category} onChange={e => handleChange('category', e.target.value)} />
+                  <Tag className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${touched.category && !errors.category ? 'text-emerald-500' : 'text-slate-400'}`} />
+                  <input list="categories" placeholder="Pilih atau taip..." className={getInputClass('category')} value={formData.category} onChange={e => handleChange('category', e.target.value)} onBlur={() => handleBlur('category')} />
                   <datalist id="categories">
                     {CATEGORIES.map(c => <option key={c} value={c} />)}
                   </datalist>
                 </div>
+                {errors.category && touched.category && <p className="text-xs text-rose-600 font-bold px-4 flex items-center gap-2"><AlertCircle className="w-4 h-4" /> {errors.category}</p>}
               </div>
               <div className="flex flex-wrap gap-2 px-1">
                 {commonCategories.map(cat => (
                   <button
                     key={cat}
                     type="button"
-                    onClick={() => handleChange('category', cat)}
+                    onClick={() => { handleChange('category', cat); setTouched(t => ({ ...t, category: true })); }}
                     className={`text-[10px] font-black px-4 py-2 rounded-xl border-2 transition-all active:scale-95 uppercase tracking-widest ${
                       formData.category === cat 
                         ? theme.pillActive
@@ -277,7 +307,10 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
 
         <div className="p-8 border-t bg-slate-50/50 flex flex-col sm:flex-row gap-3 z-10 shrink-0">
           <button onClick={onClose} className="flex-1 px-8 py-4 bg-white border-2 border-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-50 transition-all active:scale-95">Batal</button>
-          <button onClick={handleSubmit} className={`flex-1 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] text-white shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all ${theme.btn}`}>
+          <button 
+            onClick={handleSubmit} 
+            className={`flex-1 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] text-white shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all ${theme.btn} ${Object.keys(validate(formData)).length > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
             <Check className="w-5 h-5" strokeWidth={3} /> {mode === 'edit' ? 'Kemaskini Data' : 'Simpan Rekod'}
           </button>
         </div>

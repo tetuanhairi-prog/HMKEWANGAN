@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Printer, Trash2, Banknote, AlertCircle, Plus, Receipt } from 'lucide-react';
+import { X, Printer, Trash2, Banknote, AlertCircle, Plus, Receipt, Check } from 'lucide-react';
 import { Invoice } from '../types';
 import { printInvoice, formatRM } from '../utils/printUtils';
 
@@ -27,10 +27,18 @@ const InvoiceModal: React.FC<Props> = ({ isOpen, onClose, invoices, onAddInvoice
 
   const validate = (data: typeof formData) => {
     const newErrors: { [key: string]: string } = {};
-    if (!data.no.trim()) newErrors.no = "No. Invois diperlukan";
-    if (!data.client.trim()) newErrors.client = "Nama Pelanggan diperlukan";
-    if (!data.amount || isNaN(parseFloat(data.amount)) || parseFloat(data.amount) <= 0) {
-      newErrors.amount = "Jumlah tidak sah";
+    if (!data.no.trim()) {
+        newErrors.no = "No. Invois diperlukan";
+    }
+    if (!data.client.trim()) {
+        newErrors.client = "Nama Pelanggan diperlukan";
+    }
+    
+    const amt = parseFloat(data.amount);
+    if (!data.amount) {
+        newErrors.amount = "Jumlah diperlukan";
+    } else if (isNaN(amt) || amt <= 0) {
+        newErrors.amount = "Jumlah mesti positif";
     }
     return newErrors;
   };
@@ -38,6 +46,7 @@ const InvoiceModal: React.FC<Props> = ({ isOpen, onClose, invoices, onAddInvoice
   const handleChange = (field: keyof typeof formData, value: string) => {
     const newData = { ...formData, [field]: value };
     setFormData(newData);
+    
     if (touched[field as string]) {
       const errs = validate(newData);
       setErrors(prev => ({ ...prev, [field as string]: errs[field as string] || '' }));
@@ -68,12 +77,21 @@ const InvoiceModal: React.FC<Props> = ({ isOpen, onClose, invoices, onAddInvoice
     }
   };
 
-  const getInputClass = (field: string) => 
-    `w-full bg-slate-50 border-2 rounded-2xl px-6 py-4 text-sm font-bold transition-all duration-300 outline-none ${
-      errors[field] 
+  const getInputClass = (field: string) => {
+    const isTouched = touched[field];
+    const hasError = !!errors[field];
+    const isValid = isTouched && !hasError;
+
+    return `w-full bg-slate-50 border-2 rounded-2xl px-6 py-4 text-sm font-bold transition-all duration-300 outline-none ${
+      hasError 
         ? 'border-rose-300 bg-rose-50 text-rose-700 focus:ring-8 focus:ring-rose-500/10' 
-        : 'border-slate-100 focus:bg-white focus:border-indigo-500 focus:ring-8 focus:ring-indigo-500/10 text-slate-800'
+        : isValid
+            ? 'border-emerald-200 bg-emerald-50/30 text-slate-800 focus:border-emerald-500 focus:ring-8 focus:ring-emerald-500/10'
+            : 'border-slate-100 focus:bg-white focus:border-indigo-500 focus:ring-8 focus:ring-indigo-500/10 text-slate-800'
     }`;
+  };
+
+  const formValid = Object.keys(validate(formData)).length === 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
@@ -104,14 +122,20 @@ const InvoiceModal: React.FC<Props> = ({ isOpen, onClose, invoices, onAddInvoice
             <div className="space-y-5">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">No. Invois</label>
-                <input placeholder="HMA-2024-001" className={getInputClass('no')} value={formData.no} onChange={e => handleChange('no', e.target.value)} onBlur={() => handleBlur('no')} />
-                {errors.no && <p className="text-[10px] text-rose-600 font-bold px-2 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{errors.no}</p>}
+                <div className="relative">
+                    <input placeholder="HMA-2024-001" className={getInputClass('no')} value={formData.no} onChange={e => handleChange('no', e.target.value)} onBlur={() => handleBlur('no')} />
+                    {touched.no && !errors.no && <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" strokeWidth={3} />}
+                </div>
+                {errors.no && touched.no && <p className="text-[10px] text-rose-600 font-bold px-2 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{errors.no}</p>}
               </div>
               
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Pelanggan</label>
-                <input placeholder="Nama Pelanggan" className={getInputClass('client')} value={formData.client} onChange={e => handleChange('client', e.target.value)} onBlur={() => handleBlur('client')} />
-                {errors.client && <p className="text-[10px] text-rose-600 font-bold px-2 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{errors.client}</p>}
+                <div className="relative">
+                    <input placeholder="Nama Pelanggan" className={getInputClass('client')} value={formData.client} onChange={e => handleChange('client', e.target.value)} onBlur={() => handleBlur('client')} />
+                    {touched.client && !errors.client && <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" strokeWidth={3} />}
+                </div>
+                {errors.client && touched.client && <p className="text-[10px] text-rose-600 font-bold px-2 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{errors.client}</p>}
               </div>
 
               <div className="space-y-2">
@@ -121,11 +145,18 @@ const InvoiceModal: React.FC<Props> = ({ isOpen, onClose, invoices, onAddInvoice
 
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Jumlah (RM)</label>
-                <input type="number" placeholder="0.00" className={`${getInputClass('amount')} font-black text-lg`} value={formData.amount} onChange={e => handleChange('amount', e.target.value)} onBlur={() => handleBlur('amount')} />
-                {errors.amount && <p className="text-[10px] text-rose-600 font-bold px-2 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{errors.amount}</p>}
+                <div className="relative">
+                    <input type="number" placeholder="0.00" className={`${getInputClass('amount')} font-black text-lg`} value={formData.amount} onChange={e => handleChange('amount', e.target.value)} onBlur={() => handleBlur('amount')} />
+                    {touched.amount && !errors.amount && <Check className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" strokeWidth={3} />}
+                </div>
+                {errors.amount && touched.amount && <p className="text-[10px] text-rose-600 font-bold px-2 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{errors.amount}</p>}
               </div>
 
-              <button onClick={handleSubmit} className="w-full bg-indigo-600 text-white py-4.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 mt-4 transition-all shadow-xl shadow-indigo-500/20 active:scale-[0.98]">
+              <button 
+                onClick={handleSubmit} 
+                disabled={!formValid}
+                className={`w-full py-4.5 rounded-2xl font-black text-xs uppercase tracking-widest mt-4 transition-all shadow-xl active:scale-[0.98] ${formValid ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+              >
                 Hasilkan Invois
               </button>
             </div>
