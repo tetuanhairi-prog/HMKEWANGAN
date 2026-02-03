@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Printer, Trash2, Banknote, AlertCircle, Plus } from 'lucide-react';
+import { X, Printer, Trash2, Banknote, AlertCircle, Plus, Receipt } from 'lucide-react';
 import { Invoice } from '../types';
 import { printInvoice, formatRM } from '../utils/printUtils';
 
@@ -38,7 +38,6 @@ const InvoiceModal: React.FC<Props> = ({ isOpen, onClose, invoices, onAddInvoice
   const handleChange = (field: keyof typeof formData, value: string) => {
     const newData = { ...formData, [field]: value };
     setFormData(newData);
-    
     if (touched[field as string]) {
       const errs = validate(newData);
       setErrors(prev => ({ ...prev, [field as string]: errs[field as string] || '' }));
@@ -70,126 +69,114 @@ const InvoiceModal: React.FC<Props> = ({ isOpen, onClose, invoices, onAddInvoice
   };
 
   const getInputClass = (field: string) => 
-    `w-full border rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 transition-all duration-200 ${
+    `w-full bg-slate-50 border-2 rounded-2xl px-6 py-4 text-sm font-bold transition-all duration-300 outline-none ${
       errors[field] 
-        ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-200 bg-rose-50' 
-        : 'border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-blue-100 text-gray-700'
+        ? 'border-rose-300 bg-rose-50 text-rose-700 focus:ring-8 focus:ring-rose-500/10' 
+        : 'border-slate-100 focus:bg-white focus:border-indigo-500 focus:ring-8 focus:ring-indigo-500/10 text-slate-800'
     }`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white w-full max-w-4xl h-full sm:h-[90vh] sm:rounded-2xl shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200">
+      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-md" onClick={onClose} />
+      <div className="relative bg-white w-full max-w-6xl h-full sm:h-[90vh] sm:rounded-[2.5rem] shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-300 overflow-hidden">
         
-        {/* Header */}
-        <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b bg-blue-50 sm:rounded-t-2xl shrink-0">
-          <p className="text-lg font-bold text-blue-800 flex items-center gap-2">
-            Pengurusan Invois
-          </p>
-          <button onClick={onClose} className="p-2 hover:bg-blue-200 rounded-full transition-colors">
-            <X className="w-5 h-5 text-blue-800" />
+        <div className="flex justify-between items-center px-8 py-8 border-b bg-indigo-600 text-white shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/20 rounded-2xl shadow-inner backdrop-blur-md">
+              <Receipt className="w-8 h-8" strokeWidth={2.5} />
+            </div>
+            <div>
+              <p className="text-2xl font-black uppercase tracking-tighter">Pengurusan Invois</p>
+              <p className="text-[10px] font-black text-indigo-100 uppercase tracking-widest opacity-80">Invoice Management System</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-3 hover:bg-white/20 rounded-2xl transition-all group active:scale-90">
+            <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" strokeWidth={3} />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden p-4 sm:p-6 flex flex-col md:flex-row gap-4 sm:gap-6">
+        <div className="flex-1 overflow-hidden p-6 sm:p-8 flex flex-col md:flex-row gap-8 bg-slate-50/30">
           
-          {/* Form Section - Scrolls naturally on mobile within flex-1 if needed, or stays at top */}
-          <div className="w-full md:w-1/3 bg-gray-50 p-4 sm:p-5 rounded-2xl border border-gray-200 h-fit shrink-0 overflow-y-auto max-h-[40vh] md:max-h-full">
-            <h3 className="font-bold text-gray-700 mb-4 text-sm uppercase tracking-wide flex items-center gap-2">
-              <Plus className="w-4 h-4" /> Jana Invois Baru
+          <div className="w-full md:w-[350px] bg-white p-8 rounded-[2rem] border-2 border-slate-100 h-fit shrink-0 shadow-sm overflow-y-auto max-h-[40vh] md:max-h-full no-scrollbar">
+            <h3 className="font-black text-slate-800 mb-6 text-xs uppercase tracking-[0.2em] flex items-center gap-3">
+              <div className="w-1.5 h-6 bg-indigo-500 rounded-full"></div> Jana Invois Baru
             </h3>
-            <div className="space-y-3 sm:space-y-4">
-              <div>
-                <input 
-                  placeholder="No. Invois" 
-                  className={getInputClass('no')}
-                  value={formData.no}
-                  onChange={e => handleChange('no', e.target.value)}
-                  onBlur={() => handleBlur('no')}
-                />
-                {errors.no && <p className="text-xs text-rose-600 mt-1 flex items-center px-1"><AlertCircle className="w-3 h-3 mr-1"/>{errors.no}</p>}
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">No. Invois</label>
+                <input placeholder="HMA-2024-001" className={getInputClass('no')} value={formData.no} onChange={e => handleChange('no', e.target.value)} onBlur={() => handleBlur('no')} />
+                {errors.no && <p className="text-[10px] text-rose-600 font-bold px-2 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{errors.no}</p>}
               </div>
               
-              <div>
-                <input 
-                  placeholder="Nama Pelanggan" 
-                  className={getInputClass('client')}
-                  value={formData.client}
-                  onChange={e => handleChange('client', e.target.value)}
-                  onBlur={() => handleBlur('client')}
-                />
-                {errors.client && <p className="text-xs text-rose-600 mt-1 flex items-center px-1"><AlertCircle className="w-3 h-3 mr-1"/>{errors.client}</p>}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Pelanggan</label>
+                <input placeholder="Nama Pelanggan" className={getInputClass('client')} value={formData.client} onChange={e => handleChange('client', e.target.value)} onBlur={() => handleBlur('client')} />
+                {errors.client && <p className="text-[10px] text-rose-600 font-bold px-2 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{errors.client}</p>}
               </div>
 
-              <textarea 
-                placeholder="Keterangan..." 
-                className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-2.5 text-sm h-20 sm:h-24 resize-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:bg-white outline-none transition-all text-gray-700"
-                value={formData.desc}
-                onChange={e => handleChange('desc', e.target.value)}
-              />
-
-              <div>
-                <input 
-                  type="number" 
-                  placeholder="Jumlah (RM)" 
-                  className={`${getInputClass('amount')} font-mono font-medium`}
-                  value={formData.amount}
-                  onChange={e => handleChange('amount', e.target.value)}
-                  onBlur={() => handleBlur('amount')}
-                />
-                {errors.amount && <p className="text-xs text-rose-600 mt-1 flex items-center px-1"><AlertCircle className="w-3 h-3 mr-1"/>{errors.amount}</p>}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Keterangan</label>
+                <textarea placeholder="Penerangan invois..." className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold h-24 resize-none focus:ring-8 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white outline-none transition-all text-slate-800" value={formData.desc} onChange={e => handleChange('desc', e.target.value)} />
               </div>
 
-              <button onClick={handleSubmit} className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 mt-2 transition-all shadow-lg shadow-blue-200 active:scale-95">
-                Buat Invois
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Jumlah (RM)</label>
+                <input type="number" placeholder="0.00" className={`${getInputClass('amount')} font-black text-lg`} value={formData.amount} onChange={e => handleChange('amount', e.target.value)} onBlur={() => handleBlur('amount')} />
+                {errors.amount && <p className="text-[10px] text-rose-600 font-bold px-2 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{errors.amount}</p>}
+              </div>
+
+              <button onClick={handleSubmit} className="w-full bg-indigo-600 text-white py-4.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 mt-4 transition-all shadow-xl shadow-indigo-500/20 active:scale-[0.98]">
+                Hasilkan Invois
               </button>
             </div>
           </div>
 
-          {/* List Section - Takes remaining space */}
           <div className="w-full md:w-2/3 flex flex-col min-h-0 flex-1">
-            <h3 className="font-bold text-gray-700 mb-2 sm:mb-4 text-sm uppercase tracking-wide shrink-0">Senarai Invois</h3>
-            <div className="flex-1 overflow-auto border rounded-2xl bg-white shadow-sm scrollbar-thin scrollbar-thumb-gray-200 min-h-0">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-gray-100 text-gray-600 font-bold uppercase text-xs sticky top-0">
+            <h3 className="font-black text-slate-800 mb-6 text-xs uppercase tracking-[0.2em] flex items-center gap-3 shrink-0">
+              <div className="w-1.5 h-6 bg-indigo-500 rounded-full"></div> Senarai Invois Aktif
+            </h3>
+            <div className="flex-1 overflow-auto border-2 border-slate-100 rounded-[2.5rem] bg-white shadow-xl min-h-0 no-scrollbar">
+              <table className="w-full text-sm text-left border-collapse">
+                <thead className="bg-slate-50 text-slate-400 font-black uppercase text-[10px] tracking-widest sticky top-0 z-10">
                   <tr>
-                    <th className="p-3 sm:p-4 whitespace-nowrap">No. Invois</th>
-                    <th className="p-3 sm:p-4 whitespace-nowrap">Pelanggan</th>
-                    <th className="p-3 sm:p-4 text-right whitespace-nowrap">Jumlah</th>
-                    <th className="p-3 sm:p-4 text-center whitespace-nowrap">Status</th>
-                    <th className="p-3 sm:p-4 text-center whitespace-nowrap">Aksi</th>
+                    <th className="p-6">No. Invois</th>
+                    <th className="p-6">Pelanggan</th>
+                    <th className="p-6 text-right">Jumlah</th>
+                    <th className="p-6 text-center">Status</th>
+                    <th className="p-6 text-center">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-50">
                   {[...invoices].reverse().map(inv => (
-                    <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="p-3 sm:p-4 font-mono text-xs font-bold text-gray-600 whitespace-nowrap">{inv.no}</td>
-                      <td className="p-3 sm:p-4 font-medium text-gray-800 whitespace-nowrap">{inv.client}</td>
-                      <td className="p-3 sm:p-4 text-right font-bold text-gray-700 whitespace-nowrap">{formatRM(inv.amount)}</td>
-                      <td className="p-3 sm:p-4 text-center whitespace-nowrap">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${inv.status === 'paid' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-yellow-100 text-yellow-700 border border-yellow-200'}`}>
-                          {inv.status === 'paid' ? 'Dibayar' : 'Belum'}
+                    <tr key={inv.id} className="hover:bg-slate-50 transition-colors group">
+                      <td className="p-6 font-black text-xs text-slate-500 tracking-wider">{inv.no}</td>
+                      <td className="p-6 font-black text-slate-800">{inv.client}</td>
+                      <td className="p-6 text-right font-black text-slate-900 text-base">{formatRM(inv.amount)}</td>
+                      <td className="p-6 text-center">
+                        <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 ${inv.status === 'paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                          {inv.status === 'paid' ? 'DIBAYAR' : 'PENDING'}
                         </span>
                       </td>
-                      <td className="p-3 sm:p-4 flex justify-center gap-2 whitespace-nowrap">
-                        <button onClick={() => printInvoice(inv)} className="p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors" title="Cetak">
-                          <Printer className="w-4 h-4" />
-                        </button>
-                        {inv.status === 'unpaid' && (
-                          <button onClick={() => onPayInvoice(inv)} className="p-2 text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors" title="Bayar">
-                            <Banknote className="w-4 h-4" />
+                      <td className="p-6">
+                        <div className="flex justify-center gap-2">
+                          <button onClick={() => printInvoice(inv)} className="p-3 text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition-all border border-indigo-100" title="Cetak Invois">
+                            <Printer className="w-4 h-4" />
                           </button>
-                        )}
-                        <button onClick={() => onDeleteInvoice(inv.id)} className="p-2 text-red-500 bg-red-50 rounded-lg hover:bg-red-100 transition-colors" title="Padam">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                          {inv.status === 'unpaid' && (
+                            <button onClick={() => onPayInvoice(inv)} className="p-3 text-emerald-600 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-all border border-emerald-100" title="Terima Bayaran">
+                              <Banknote className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button onClick={() => onDeleteInvoice(inv.id)} className="p-3 text-rose-500 bg-rose-50 rounded-xl hover:bg-rose-100 transition-all border border-rose-100" title="Hapus">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                   {invoices.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-gray-400 italic">Tiada inbois direkodkan.</td>
+                      <td colSpan={5} className="py-32 text-center text-slate-300 uppercase font-black tracking-widest text-xs opacity-50">Tiada inbois direkodkan</td>
                     </tr>
                   )}
                 </tbody>

@@ -30,10 +30,15 @@ export const ACCOUNTS = [
 ];
 
 export const CATEGORIES = [
-  "Legal Fee",
-  "Filing Fee",
+  "Office",
+  "Dokumen",
+  "Fee",
   "Mileage",
-  "Office Supplies",
+  "Mahkamah",
+  "Maizal",
+  "Arham",
+  "Aizat",
+  "Legal Fee",
   "Utilities",
   "Salary",
   "Rental"

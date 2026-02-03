@@ -100,211 +100,172 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
 
   const isIncome = formData.type === 'in';
   
-  // Theme Configuration
   const theme = isIncome ? {
       gradient: 'from-emerald-600 to-emerald-500',
       lightBg: 'bg-emerald-50',
       darkText: 'text-emerald-700',
       iconBg: 'bg-emerald-100',
       iconText: 'text-emerald-600',
-      focusRing: 'focus:ring-emerald-100',
+      focusRing: 'focus:ring-emerald-500/10',
       focusBorder: 'focus:border-emerald-500',
-      btn: 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200 focus:ring-emerald-200',
-      pillActive: 'bg-emerald-100 border-emerald-200 text-emerald-700'
+      btn: 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20 focus:ring-emerald-500/20',
+      pillActive: 'bg-emerald-600 text-white border-emerald-600 shadow-lg'
   } : {
       gradient: 'from-rose-600 to-rose-500',
       lightBg: 'bg-rose-50',
       darkText: 'text-rose-700',
       iconBg: 'bg-rose-100',
       iconText: 'text-rose-600',
-      focusRing: 'focus:ring-rose-100',
+      focusRing: 'focus:ring-rose-500/10',
       focusBorder: 'focus:border-rose-500',
-      btn: 'bg-rose-600 hover:bg-rose-700 shadow-rose-200 focus:ring-rose-200',
-      pillActive: 'bg-rose-100 border-rose-200 text-rose-700'
+      btn: 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20 focus:ring-rose-500/20',
+      pillActive: 'bg-rose-600 text-white border-rose-600 shadow-lg'
   };
 
-  // Common categories for quick selection
   const commonCategories = isIncome 
     ? ["Legal Fee", "Retainer", "Consultation", "Reimbursement"]
     : ["Filing Fee", "Office Supplies", "Utilities", "Mileage", "Salary", "Rental", "Printing", "Refreshments"];
 
-  const inputBaseClass = "w-full border rounded-xl p-2.5 text-sm outline-none transition-all pl-10 duration-200";
   const getInputClass = (field: string) => 
-    `${inputBaseClass} ${
+    `w-full bg-slate-50 border-2 rounded-2xl px-6 py-4 pl-12 text-sm font-bold outline-none transition-all duration-300 ${
       errors[field] 
-        ? 'border-rose-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 bg-rose-50' 
-        : `border-gray-200 ${theme.focusBorder} focus:ring-2 ${theme.focusRing} bg-gray-50 focus:bg-white text-gray-700`
+        ? 'border-rose-300 focus:border-rose-500 focus:bg-white focus:ring-8 focus:ring-rose-500/10 bg-rose-50 text-rose-700' 
+        : `border-slate-100 ${theme.focusBorder} focus:bg-white focus:ring-8 ${theme.focusRing} text-slate-800`
     }`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="relative bg-white w-full max-w-lg h-full sm:h-auto sm:rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-screen sm:max-h-[90vh]">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={onClose} />
+      <div className="relative bg-white w-full max-w-xl h-full sm:h-auto sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300 flex flex-col max-h-screen sm:max-h-[90vh]">
         
-        {/* Header */}
-        <div className={`px-4 sm:px-6 py-4 sm:py-5 border-b flex justify-between items-center bg-gradient-to-r transition-all duration-300 shrink-0 ${theme.gradient}`}>
-          <div className="flex items-center gap-3 text-white">
-            <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm shadow-sm hidden xs:block">
-              {isIncome ? <ArrowUpCircle className="w-5 h-5 sm:w-6 sm:h-6" /> : <ArrowDownCircle className="w-5 h-5 sm:w-6 sm:h-6" />}
+        <div className={`px-8 py-8 border-b flex justify-between items-center bg-gradient-to-r transition-all duration-500 shrink-0 ${theme.gradient}`}>
+          <div className="flex items-center gap-4 text-white">
+            <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md shadow-inner">
+              {isIncome ? <ArrowUpCircle className="w-8 h-8" strokeWidth={2.5} /> : <ArrowDownCircle className="w-8 h-8" strokeWidth={2.5} />}
             </div>
             <div>
-              <p className="text-base sm:text-lg font-bold leading-tight">{getTitle()}</p>
-              <p className="text-[10px] sm:text-xs text-white/90 font-medium uppercase tracking-wider opacity-90">{isIncome ? 'Terimaan Wang (Income)' : 'Perbelanjaan (Expense)'}</p>
+              <p className="text-2xl font-black tracking-tighter uppercase">{getTitle()}</p>
+              <p className="text-[10px] text-white/70 font-black uppercase tracking-[0.2em]">{isIncome ? 'Terimaan Wang' : 'Pembayaran / Belanja'}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors text-white">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="p-3 hover:bg-white/20 rounded-2xl transition-all text-white active:scale-90">
+            <X className="w-6 h-6" strokeWidth={3} />
           </button>
         </div>
         
-        {/* Content - Scrollable */}
-        <div className="overflow-y-auto p-4 sm:p-6 scrollbar-thin scrollbar-thumb-gray-200 flex-1">
-          <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
+        <div className="overflow-y-auto p-8 no-scrollbar flex-1 bg-white">
+          <form onSubmit={handleSubmit} className="space-y-8">
             
-            {/* Type Toggle */}
-            <div className="flex p-1 rounded-xl bg-gray-100 border border-gray-200">
+            <div className="flex p-2 rounded-2xl bg-slate-100 border-2 border-slate-100">
               <button
                 type="button"
                 onClick={() => handleChange('type', 'in')}
-                className={`flex-1 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 ${isIncome ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                className={`flex-1 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-300 ${isIncome ? 'bg-white text-emerald-600 shadow-xl scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                <ArrowUpCircle className="w-4 h-4" /> Masuk
+                <ArrowUpCircle className="w-5 h-5" /> Wang Masuk
               </button>
               <button
                 type="button"
                 onClick={() => handleChange('type', 'out')}
-                className={`flex-1 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 ${!isIncome ? 'bg-white text-rose-600 shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                className={`flex-1 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-300 ${!isIncome ? 'bg-white text-rose-600 shadow-xl scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                <ArrowDownCircle className="w-4 h-4" /> Keluar
+                <ArrowDownCircle className="w-5 h-5" /> Wang Keluar
               </button>
             </div>
 
-            {/* Amount - Hero Input */}
-            <div className="relative group">
-              <label className={`block text-xs font-bold uppercase mb-2 ml-1 ${theme.darkText}`}>
-                Jumlah Transaksi (RM)
-              </label>
-              <div className="relative">
-                <div className={`absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none p-1.5 rounded-lg ${theme.iconBg} ${theme.iconText}`}>
-                    <DollarSign className="w-5 h-5" strokeWidth={3} />
+            <div className="space-y-3">
+              <label className={`block text-xs font-black uppercase tracking-[0.2em] px-2 ${theme.darkText}`}>Jumlah Transaksi (RM)</label>
+              <div className="relative group">
+                <div className={`absolute left-6 top-1/2 -translate-y-1/2 pointer-events-none p-2 rounded-xl transition-all ${theme.iconBg} ${theme.iconText} group-focus-within:scale-110`}>
+                  <DollarSign className="w-6 h-6" strokeWidth={3} />
                 </div>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
-                  className={`w-full border rounded-xl p-4 pl-14 text-2xl sm:text-3xl font-bold outline-none transition-all duration-200 placeholder-gray-300 ${
+                  className={`w-full bg-slate-50 border-2 rounded-[1.5rem] p-6 pl-20 text-4xl font-black outline-none transition-all duration-300 placeholder-slate-200 ${
                     errors.amount 
-                      ? 'border-rose-300 bg-rose-50 text-rose-800 focus:ring-4 focus:ring-rose-200' 
-                      : `border-gray-200 text-gray-800 ${theme.focusBorder} focus:ring-4 ${theme.focusRing} bg-white`
+                      ? 'border-rose-400 bg-rose-50 text-rose-800' 
+                      : `border-slate-100 text-slate-900 ${theme.focusBorder} focus:bg-white focus:ring-8 ${theme.focusRing}`
                   }`}
                   value={formData.amount}
                   onChange={e => handleChange('amount', e.target.value)}
                   onBlur={() => handleBlur('amount')}
                 />
               </div>
-              {errors.amount && <p className="text-xs text-rose-600 mt-1 flex items-center font-medium px-1 animate-in slide-in-from-left-1"><AlertCircle className="w-3 h-3 mr-1"/>{errors.amount}</p>}
+              {errors.amount && <p className="text-xs text-rose-600 mt-2 font-bold px-4 flex items-center gap-2 animate-bounce"><AlertCircle className="w-4 h-4" /> {errors.amount}</p>}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Date */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-500 uppercase ml-1">Tarikh</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-2">Tarikh</label>
                 <div className="relative group">
-                  <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
-                  <input
-                    type="date"
-                    className={getInputClass('date')}
-                    value={formData.date}
-                    onChange={e => handleChange('date', e.target.value)}
-                    onBlur={() => handleBlur('date')}
-                  />
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                  <input type="date" className={getInputClass('date')} value={formData.date} onChange={e => handleChange('date', e.target.value)} onBlur={() => handleBlur('date')} />
                 </div>
-                {errors.date && <p className="text-xs text-rose-600 flex items-center px-1"><AlertCircle className="w-3 h-3 mr-1"/>{errors.date}</p>}
               </div>
 
-              {/* Account */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-500 uppercase ml-1">Akaun</label>
-                <div className="relative group">
-                  <Wallet className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
+              <div className="space-y-3">
+                <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-2">Akaun Bank</label>
+                <div className="relative">
+                  <Wallet className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
                   <select
-                    className={`w-full border rounded-xl p-2.5 pl-10 text-sm font-medium outline-none appearance-none cursor-pointer transition-all duration-200 ${
-                        `border-gray-200 bg-gray-50 focus:bg-white ${theme.focusBorder} focus:ring-2 ${theme.focusRing} text-gray-700`
-                    }`}
+                    className={`w-full bg-slate-50 border-2 rounded-2xl px-6 py-4 pl-12 text-sm font-bold outline-none appearance-none cursor-pointer transition-all duration-300 border-slate-100 ${theme.focusBorder} focus:bg-white focus:ring-8 ${theme.focusRing} text-slate-800`}
                     value={formData.account}
                     onChange={e => handleChange('account', e.target.value)}
                   >
-                    {ACCOUNTS.map(acc => <option key={acc} value={acc}>{acc}</option>)}
+                    {ACCOUNTS.map(acc => <option key={acc} value={acc}>{acc.toUpperCase()}</option>)}
                   </select>
-                  <div className="absolute right-3 top-3 pointer-events-none">
-                    <ArrowDownCircle className="w-3 h-3 text-gray-400" />
-                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Name */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-500 uppercase ml-1">Nama (Payer / Payee)</label>
-              <div className="relative group">
-                <User className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
-                <input
-                  type="text"
-                  placeholder="Contoh: Ali Bin Abu / TNB"
-                  className={getInputClass('name')}
-                  value={formData.name}
-                  onChange={e => handleChange('name', e.target.value)}
-                  onBlur={() => handleBlur('name')}
-                />
+            <div className="space-y-3">
+              <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-2">Nama Pihak (Payer / Payee)</label>
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                <input type="text" placeholder="Contoh: TNB / Ali Abu" className={getInputClass('name')} value={formData.name} onChange={e => handleChange('name', e.target.value)} onBlur={() => handleBlur('name')} />
               </div>
-              {errors.name && <p className="text-xs text-rose-600 flex items-center px-1"><AlertCircle className="w-3 h-3 mr-1"/>{errors.name}</p>}
+              {errors.name && <p className="text-xs text-rose-600 font-bold px-4 flex items-center gap-2"><AlertCircle className="w-4 h-4" /> {errors.name}</p>}
             </div>
 
-            {/* Category */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-500 uppercase ml-1">Kategori</label>
-              <div className="relative group">
-                <Tag className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
-                <input
-                  list="categories"
-                  placeholder="Pilih atau taip kategori..."
-                  className={getInputClass('category')}
-                  value={formData.category}
-                  onChange={e => handleChange('category', e.target.value)}
-                />
-                <datalist id="categories">
-                  {CATEGORIES.map(c => <option key={c} value={c} />)}
-                </datalist>
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-2">Kategori Transaksi</label>
+                <div className="relative">
+                  <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                  <input list="categories" placeholder="Pilih atau taip..." className={getInputClass('category')} value={formData.category} onChange={e => handleChange('category', e.target.value)} />
+                  <datalist id="categories">
+                    {CATEGORIES.map(c => <option key={c} value={c} />)}
+                  </datalist>
+                </div>
               </div>
-              
-              {/* Quick Category Pills */}
-              <div className="flex flex-wrap gap-2 mt-2 px-1">
-                  {commonCategories.map(cat => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => handleChange('category', cat)}
-                      className={`text-[10px] uppercase font-bold px-2.5 py-1 rounded-full border transition-all active:scale-95 ${
-                        formData.category === cat 
-                          ? `${theme.pillActive} shadow-sm`
-                          : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
+              <div className="flex flex-wrap gap-2 px-1">
+                {commonCategories.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => handleChange('category', cat)}
+                    className={`text-[10px] font-black px-4 py-2 rounded-xl border-2 transition-all active:scale-95 uppercase tracking-widest ${
+                      formData.category === cat 
+                        ? theme.pillActive
+                        : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300 hover:text-slate-600'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Details */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-500 uppercase ml-1">Butiran / Keterangan</label>
-              <div className="relative group">
-                <FileText className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
-                <input
-                  type="text"
-                  placeholder="Nota tambahan (pilihan)..."
-                  className={getInputClass('details')}
+            <div className="space-y-3">
+              <label className="text-xs font-black text-slate-500 uppercase tracking-widest px-2">Keterangan / Nota</label>
+              <div className="relative">
+                <FileText className="absolute left-4 top-4 w-5 h-5 text-slate-400 pointer-events-none" />
+                <textarea
+                  rows={3}
+                  placeholder="Nota tambahan..."
+                  className={`w-full bg-slate-50 border-2 rounded-2xl px-6 py-4 pl-12 text-sm font-bold outline-none transition-all duration-300 border-slate-100 ${theme.focusBorder} focus:bg-white focus:ring-8 ${theme.focusRing} text-slate-800 resize-none`}
                   value={formData.details}
                   onChange={e => handleChange('details', e.target.value)}
                 />
@@ -314,21 +275,10 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
           </form>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t bg-gray-50 flex justify-end gap-3 z-10 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-50 hover:border-gray-400 transition-colors focus:ring-2 focus:ring-gray-200"
-          >
-            Batal
-          </button>
-          <button
-            onClick={handleSubmit}
-            type="submit"
-            className={`px-6 py-2.5 rounded-xl font-bold text-sm text-white shadow-lg flex items-center gap-2 transition-transform active:scale-95 focus:ring-4 focus:ring-opacity-50 ${theme.btn}`}
-          >
-            <Check className="w-4 h-4" /> {mode === 'edit' ? 'Kemaskini' : 'Simpan'}
+        <div className="p-8 border-t bg-slate-50/50 flex flex-col sm:flex-row gap-3 z-10 shrink-0">
+          <button onClick={onClose} className="flex-1 px-8 py-4 bg-white border-2 border-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-50 transition-all active:scale-95">Batal</button>
+          <button onClick={handleSubmit} className={`flex-1 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] text-white shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all ${theme.btn}`}>
+            <Check className="w-5 h-5" strokeWidth={3} /> {mode === 'edit' ? 'Kemaskini Data' : 'Simpan Rekod'}
           </button>
         </div>
       </div>
