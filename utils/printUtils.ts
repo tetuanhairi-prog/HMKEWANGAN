@@ -2,9 +2,49 @@ import { Transaction, Invoice, MONTHS } from '../types';
 
 export const formatRM = (n: number) => "RM " + n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export const formatDate = (s: string) => {
+/**
+ * Memformat tarikh ke bentuk dd/mm/yyyy.
+ * Menangani format YYYY-MM-DD (ISO) dan objek Date dengan tepat.
+ */
+export const formatDate = (s: string | Date | undefined): string => {
+  if (!s) return "";
+  
+  // Jika input adalah string
+  if (typeof s === 'string') {
+    // Format YYYY-MM-DD
+    if (s.includes('-')) {
+      const parts = s.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        const [y, m, d] = parts;
+        return `${d}/${m}/${y}`;
+      }
+    }
+    // Format dd/mm/yyyy (sudah betul)
+    if (s.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+      return s;
+    }
+  }
+
   const d = new Date(s);
-  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+  if (isNaN(d.getTime())) return typeof s === 'string' ? s : "";
+  
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+/**
+ * Menukarkan format dd/mm/yyyy kembali ke YYYY-MM-DD untuk kegunaan input native
+ */
+export const toISODate = (s: string): string => {
+  if (!s) return "";
+  const parts = s.split('/');
+  if (parts.length === 3) {
+    const [d, m, y] = parts;
+    return `${y}-${m}-${d}`;
+  }
+  return s;
 };
 
 export const printReceipt = (t: Transaction) => {

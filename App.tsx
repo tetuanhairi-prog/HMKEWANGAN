@@ -2,9 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Scale, FileText, Table, Download, Upload, Power, 
   Filter, PlusCircle, Trash2, Printer, Copy, Search, AlertCircle, Pencil, Lock, LogOut,
-  ArrowRightLeft, TrendingUp, TrendingDown, LayoutDashboard
+  ArrowRightLeft, TrendingUp, TrendingDown, LayoutDashboard, Check, Wallet, History,
+  Layers, ChevronRight, Activity
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { ACCOUNTS, MONTHS, Transaction, Invoice } from './types';
 import { formatRM, formatDate, printReceipt } from './utils/printUtils';
 
@@ -115,14 +115,14 @@ const App: React.FC = () => {
       ));
     } else {
       const newTrans = { ...t, id: Date.now() };
-      setTransactions(prev => [...prev, newTrans]);
+      setTransactions(prev => [newTrans, ...prev]);
     }
     setEditingTransaction(null);
     setModalMode('create');
   };
 
   const handleDeleteTransaction = (id: number) => {
-    if (confirm('Padam transaksi ini?')) {
+    if (confirm('Padam transaksi ini secara kekal?')) {
       setTransactions(prev => prev.filter(t => t.id !== id));
     }
   };
@@ -133,6 +133,12 @@ const App: React.FC = () => {
     setIsAddModalOpen(true);
   };
 
+  const handleCopy = (t: Transaction) => {
+    setEditingTransaction(t);
+    setModalMode('copy');
+    setIsAddModalOpen(true);
+  };
+
   const handleAddInvoice = (inv: Omit<Invoice, 'id' | 'status' | 'date'>) => {
     const newInv: Invoice = {
       ...inv,
@@ -140,44 +146,40 @@ const App: React.FC = () => {
       status: 'unpaid',
       date: new Date().toISOString().split('T')[0]
     };
-    setInvoices(prev => [...prev, newInv]);
+    setInvoices(prev => [newInv, ...prev]);
   };
 
   const handleDeleteInvoice = (id: number) => {
-    if (confirm('Padam invois ini?')) {
-      setInvoices(prev => prev.filter(i => i.id !== id));
+    if (confirm('Padam invois ini secara kekal?')) {
+      setInvoices(prev => prev.filter(inv => inv.id !== id));
     }
   };
 
   const handlePayInvoice = (inv: Invoice) => {
-    if (confirm(`Adakah ${inv.client} sudah membuat bayaran RM${inv.amount}?`)) {
-      setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: 'paid' } : i));
-      const newTrans: Transaction = {
-        id: Date.now(),
-        date: new Date().toISOString().split('T')[0],
-        type: 'in',
-        account: 'Akaun Pejabat',
-        amount: inv.amount,
-        name: inv.client,
-        category: 'Fee',
-        details: `Bayaran Invois: ${inv.no}`
-      };
-      setTransactions(prev => [...prev, newTrans]);
-    }
+    setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: 'paid' } : i));
+    const newTrans: Transaction = {
+      id: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      type: 'in',
+      account: "Akaun Pejabat",
+      amount: inv.amount,
+      name: inv.client,
+      category: "Legal Fee",
+      details: `Bayaran Invois: ${inv.no} - ${inv.desc}`
+    };
+    setTransactions(prev => [newTrans, ...prev]);
   };
 
   const handleExport = () => {
     localStorage.setItem('hma_last_backup', Date.now().toString());
     setShowBackupAlert(false);
     
-    // Header format from image
     const headers = ["Tarikh", "Nama", "Butir-butir", "In", "Out", "Katagori"];
     let csvContent = headers.join(",") + "\n";
     
-    transactions.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).forEach(t => {
-      const dateParts = t.date.split('-');
-      const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-      
+    // Sort transactions by date ascending for the export
+    [...transactions].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).forEach(t => {
+      const formattedDate = formatDate(t.date); 
       const row = [
         formattedDate,
         `"${t.name.replace(/"/g, '""')}"`,
@@ -193,7 +195,7 @@ const App: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `REKOD_PETTY_CASH_${MONTHS[filterMonth].toUpperCase()}_${filterYear}.csv`);
+    link.setAttribute("download", `HMA_DATABASE_${formatDate(new Date()).replace(/\//g, '-')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -208,34 +210,23 @@ const App: React.FC = () => {
       try {
         const content = evt.target?.result as string;
         const lines = content.split(/\r?\n/).filter(line => line.trim() !== "");
-        if (lines.length < 1) {
-          alert("Fail kosong atau tidak sah.");
-          return;
-        }
+        if (lines.length <= 1) return;
 
         const newTrans: Transaction[] = [];
         const baseId = Date.now();
         
-        // Detect delimiter (comma or semicolon)
-        const firstLine = lines[0];
-        const delimiter = firstLine.includes(';') ? ';' : ',';
-
-        // Helper to clean and parse amount (handles RM, commas, quotes)
-        const parseCurrency = (val: string) => {
-          if (!val) return NaN;
-          // Remove RM, commas, and quotes
-          const sanitized = val.replace(/RM/gi, '').replace(/,/g, '').replace(/"/g, '').trim();
-          return parseFloat(sanitized);
-        };
-
-        // Helper to parse DD/MM/YYYY or YYYY-MM-DD
-        const parseDate = (dateStr: string) => {
-          if (!dateStr) return null;
-          const clean = dateStr.replace(/"/g, '').trim();
-          
-          // DD/MM/YYYY
-          if (clean.includes('/')) {
-            const parts = clean.split('/');
+        for (let i = 1; i < lines.length; i++) {
+          const c = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+          if (c.length < 5) continue;
+          const cleanStr = (val: string) => (val || "").trim().replace(/^"|"$/g, '').replace(/""/g, '"');
+          const cleanAmount = (val: string) => {
+            if (!val) return NaN;
+            const sanitized = val.replace(/RM/gi, '').replace(/,/g, '').trim();
+            return parseFloat(sanitized);
+          };
+          const parseDateString = (dateStr: string) => {
+            // dd/mm/yyyy
+            const parts = dateStr.split('/');
             if (parts.length === 3) {
               const d = parts[0].padStart(2, '0');
               const m = parts[1].padStart(2, '0');
@@ -243,336 +234,248 @@ const App: React.FC = () => {
               if (y.length === 2) y = `20${y}`;
               return `${y}-${m}-${d}`;
             }
-          }
-          // YYYY-MM-DD
-          if (clean.includes('-')) {
-            const parts = clean.split('-');
-            if (parts.length === 3 && parts[0].length === 4) return clean;
-          }
-          return null;
-        };
-
-        for (let i = 0; i < lines.length; i++) {
-          const rawLine = lines[i];
-          // Use regex for CSV split to handle values inside quotes
-          const regex = new RegExp(`${delimiter}(?=(?:(?:[^"]*"){2})*[^"]*$)`);
-          const c = rawLine.split(regex).map(val => val.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
-          
-          if (c.length < 5) continue;
-
-          const dateStr = c[0];
-          const parsedDate = parseDate(dateStr);
-          
-          // If the first column isn't a valid date, it might be a header or metadata row. Skip it.
+            // yyyy-mm-dd
+            if (dateStr.includes('-')) {
+               const isoParts = dateStr.split('-');
+               if (isoParts[0].length === 4) return dateStr;
+            }
+            return null;
+          };
+          const parsedDate = parseDateString(cleanStr(c[0]));
           if (!parsedDate) continue;
 
-          const name = c[1] || "";
-          const details = c[2] || "";
-          const inAmt = parseCurrency(c[3]);
-          const outAmt = parseCurrency(c[4]);
-          const category = c[5] || "Office";
-
-          let finalAmt = 0;
-          let type: 'in' | 'out' = 'in';
-
-          if (!isNaN(inAmt) && inAmt !== 0) {
-            finalAmt = Math.abs(inAmt);
-            type = 'in';
-          } else if (!isNaN(outAmt) && outAmt !== 0) {
-            finalAmt = Math.abs(outAmt);
-            type = 'out';
-          } else {
-            // No amount found in this row, skip it
-            continue;
-          }
+          const inVal = cleanAmount(cleanStr(c[3]));
+          const outVal = cleanAmount(cleanStr(c[4]));
+          let type: 'in' | 'out' = isNaN(inVal) || inVal === 0 ? 'out' : 'in';
+          let amount = type === 'in' ? inVal : outVal;
 
           newTrans.push({
-            id: baseId + i + Math.random(),
+            id: baseId + i,
             date: parsedDate,
+            type,
             account: "Akaun Pejabat",
-            type: type,
-            category: category,
-            name: name,
-            details: details,
-            amount: finalAmt
+            amount: isNaN(amount) ? 0 : Math.abs(amount),
+            name: cleanStr(c[1]),
+            category: cleanStr(c[5]) || "Office",
+            details: cleanStr(c[2])
           });
         }
-
-        if (newTrans.length > 0) {
-          setTransactions(prev => [...prev, ...newTrans]);
-          alert(`${newTrans.length} rekod berjaya diimport!`);
-        } else {
-          alert("Tiada rekod sah dijumpai. Sila pastikan format Tarikh (DD/MM/YYYY) dan kolum In/Out mengandungi jumlah.");
-        }
+        setTransactions(prev => [...newTrans, ...prev]);
+        alert(`${newTrans.length} rekod berjaya diimport!`);
       } catch (err) {
-        console.error("Import error:", err);
-        alert("Ralat semasa membaca fail CSV. Sila pastikan format kolum: Tarikh, Nama, Butir-butir, In, Out, Katagori.");
+        alert("Gagal membaca fail CSV. Pastikan format adalah betul.");
       }
     };
     reader.readAsText(file);
-    e.target.value = ''; 
+    e.target.value = '';
   };
 
-  const handleReset = () => {
-    if (confirm("AMARAN: Ini akan memadam SEMUA data. Teruskan?")) {
-      setTransactions([]);
-      setInvoices([]);
-      localStorage.removeItem('hma_db_trans');
-      localStorage.removeItem('hma_db_invoices');
-    }
-  };
-
-  // --- Auth View ---
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-500 border border-slate-200">
+      <div className="min-h-screen bg-[#0A1128] flex flex-col items-center justify-center p-4">
+        <div className="bg-white p-10 rounded-[3rem] shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 border border-slate-200">
           <div className="flex flex-col items-center mb-10">
-            <div className="bg-gradient-to-tr from-indigo-600 to-indigo-400 p-5 rounded-[2rem] shadow-xl mb-6 ring-8 ring-indigo-50">
+            <div className="bg-gradient-to-tr from-indigo-600 to-indigo-400 p-6 rounded-[2.5rem] shadow-xl mb-6 ring-8 ring-indigo-50">
               <Lock className="w-10 h-10 text-white" strokeWidth={2.5} />
             </div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Akses Sistem</h1>
-            <p className="text-slate-500 font-semibold mt-1">Hairi Mustafa Associates</p>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Sistem HMA</h1>
+            <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-[10px]">Hairi Mustafa Associates</p>
           </div>
-          
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="relative group">
               <input
                 type="password"
-                placeholder="Masukkan kata laluan"
-                className={`w-full bg-slate-50 border-2 rounded-2xl px-6 py-4 text-center text-xl tracking-[0.3em] font-black outline-none transition-all duration-300 ${
-                  loginError 
-                    ? 'border-rose-400 bg-rose-50 text-rose-700' 
-                    : 'border-slate-100 focus:border-indigo-500 focus:bg-white focus:ring-8 focus:ring-indigo-500/10 text-slate-800'
-                }`}
+                placeholder="Kata Laluan"
+                className={`w-full bg-slate-50 border-2 rounded-2xl px-6 py-5 text-center text-xl tracking-[0.4em] font-black outline-none transition-all ${loginError ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-100 focus:border-indigo-500 focus:bg-white focus:ring-8 focus:ring-indigo-500/10 text-slate-800'}`}
                 value={passwordInput}
                 onChange={(e) => { setPasswordInput(e.target.value); setLoginError(''); }}
                 autoFocus
               />
-              {loginError && (
-                <p className="text-center text-rose-600 text-sm mt-3 font-bold flex items-center justify-center gap-2 animate-pulse">
-                  <AlertCircle className="w-4 h-4" /> {loginError}
-                </p>
-              )}
             </div>
-            <button 
-              type="submit" 
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4.5 rounded-2xl font-black text-lg transition-all shadow-xl hover:shadow-2xl active:scale-[0.98] transform flex items-center justify-center gap-2"
-            >
-              Masuk Sekarang
-            </button>
+            {loginError && <p className="text-center text-rose-600 text-[10px] font-black uppercase tracking-widest animate-pulse">{loginError}</p>}
+            <button type="submit" className="w-full bg-[#5D57E7] hover:bg-[#4E48D6] text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-xl active:scale-[0.98]">Masuk Sekarang</button>
           </form>
-          
-          <div className="mt-12 text-center text-[10px] font-black uppercase tracking-widest text-slate-300">
-            &copy; {new Date().getFullYear()} HMA Management System
-          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[#F8FAFC] font-sans">
-      <nav className="bg-slate-900 text-white shadow-2xl z-40 flex-none border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center gap-4 min-w-0">
-              <div className="bg-indigo-600 p-2.5 rounded-2xl shadow-indigo-500/20 shadow-lg flex-shrink-0">
-                <Scale className="w-6 h-6 text-white" strokeWidth={2.5} />
-              </div>
-              <div className="truncate">
-                <h1 className="font-black text-lg sm:text-xl tracking-tighter uppercase truncate leading-none">Hairi Mustafa Associates</h1>
-                <p className="text-[10px] sm:text-xs font-bold text-indigo-400 uppercase tracking-widest mt-1 opacity-80">Legal Management System</p>
-              </div>
+    <div className="flex flex-col h-screen bg-[#F0F2F5] font-sans selection:bg-indigo-100 selection:text-indigo-700">
+      <nav className="bg-[#0A1128] text-white shadow-2xl z-40 flex-none px-6">
+        <div className="max-w-7xl mx-auto h-20 flex items-center justify-between">
+          <div className="flex items-center gap-4 group cursor-default">
+            <div className="bg-indigo-600 p-2.5 rounded-2xl shadow-indigo-500/30 shadow-lg group-hover:scale-110 transition-transform">
+              <Scale className="w-6 h-6 text-white" strokeWidth={2.5} />
             </div>
-            
-            <div className="flex items-center gap-2 ml-4 overflow-x-auto no-scrollbar py-2">
-              <button onClick={() => setIsInvoiceModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg active:scale-95 flex items-center gap-2 shrink-0">
-                <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Invois</span>
-              </button>
-              <button onClick={() => setIsStatementModalOpen(true)} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg active:scale-95 flex items-center gap-2 shrink-0">
-                <ArrowRightLeft className="w-4 h-4" /> <span className="hidden sm:inline">Penyata</span>
-              </button>
-              <button onClick={() => setIsReportModalOpen(true)} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg active:scale-95 flex items-center gap-2 shrink-0">
-                <Table className="w-4 h-4" /> <span className="hidden sm:inline">Laporan</span>
-              </button>
-
-              <div className="h-8 w-px bg-white/10 mx-2 shrink-0"></div>
-
-              <div className="flex gap-1">
-                <button onClick={handleExport} className="p-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all border border-white/10" title="Eksport Fail (Ikut Format Hamparan)">
-                  <Download className="w-5 h-5" />
-                </button>
-                <label className="p-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all border border-white/10 cursor-pointer" title="Import Fail (Ikut Format Hamparan)">
-                  <Upload className="w-5 h-5" />
-                  <input type="file" accept=".csv" className="hidden" onChange={handleImport} />
-                </label>
-                <button onClick={handleReset} className="p-2.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 rounded-xl transition-all border border-rose-600/20" title="Sistem Reset">
-                  <Power className="w-5 h-5" />
-                </button>
-                <button onClick={handleLogout} className="p-2.5 bg-white/5 hover:bg-white/10 text-slate-400 rounded-xl transition-all border border-white/10" title="Log Keluar">
-                  <LogOut className="w-5 h-5" />
-                </button>
-              </div>
+            <div>
+              <h1 className="font-black text-xl tracking-tighter uppercase leading-none">Hairi Mustafa Associates</h1>
+              <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1 opacity-80">Legal Management System</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="hidden lg:flex items-center gap-2 mr-4">
+              <button onClick={() => setIsInvoiceModalOpen(true)} className="p-2.5 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600/20 rounded-xl border border-indigo-600/10 transition-all active:scale-95" title="Invois"><FileText className="w-5 h-5" /></button>
+              <button onClick={() => setIsStatementModalOpen(true)} className="p-2.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all border border-slate-700 active:scale-95" title="Penyata"><ArrowRightLeft className="w-5 h-5" /></button>
+              <button onClick={() => setIsReportModalOpen(true)} className="p-2.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all border border-slate-700 active:scale-95" title="Laporan"><Table className="w-5 h-5" /></button>
+            </div>
+            <div className="h-8 w-px bg-white/10 mx-2 hidden lg:block"></div>
+            <div className="flex items-center gap-2">
+              <button onClick={handleExport} className="p-2.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all border border-slate-700 active:scale-95" title="Export CSV"><Download className="w-5 h-5" /></button>
+              <label className="p-2.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all border border-slate-700 cursor-pointer active:scale-95" title="Import CSV">
+                <Upload className="w-5 h-5" />
+                <input type="file" accept=".csv" className="hidden" onChange={handleImport} />
+              </label>
+              <button onClick={() => { if(confirm("Hapus semua data secara kekal?")) { setTransactions([]); setInvoices([]); } }} className="p-2.5 bg-rose-600/10 text-rose-500 hover:bg-rose-600/20 rounded-xl border border-rose-600/10 transition-all active:scale-95" title="Reset Data"><Power className="w-5 h-5" /></button>
+              <button onClick={handleLogout} className="p-2.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all border border-slate-700 ml-2 active:scale-95" title="Log Keluar"><LogOut className="w-5 h-5" /></button>
             </div>
           </div>
         </div>
       </nav>
 
       {showBackupAlert && (
-        <div className="bg-amber-500 text-white px-6 py-2.5 text-center shadow-2xl text-xs sm:text-sm font-black uppercase tracking-widest flex items-center justify-center gap-4 animate-in slide-in-from-top-4">
-          <AlertCircle className="w-5 h-5" />
-          <span>Sila buat 'Backup' data (Eksport) hari ini.</span>
-          <button onClick={handleExport} className="bg-white text-amber-600 px-4 py-1 rounded-lg text-[10px] hover:bg-amber-50 transition-colors">Backup Sekarang</button>
+        <div className="bg-[#F59E0B] text-white px-6 py-3 shadow-lg flex items-center justify-center gap-4 animate-in slide-in-from-top-4 z-30">
+          <AlertCircle className="w-5 h-5 animate-bounce" />
+          <span className="font-black uppercase tracking-widest text-[10px] sm:text-xs">Sila buat 'Backup' data (Eksport CSV) hari ini.</span>
+          <button onClick={handleExport} className="bg-white text-[#F59E0B] px-6 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-amber-50 transition-colors shadow-sm">Backup Sekarang</button>
         </div>
       )}
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-8">
-        <div className="max-w-7xl mx-auto space-y-8 pb-20">
+      <main className="flex-1 overflow-y-auto p-4 md:p-10 no-scrollbar">
+        <div className="max-w-7xl mx-auto space-y-10 pb-20">
           
           {/* Dashboard Summary Widgets */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/60 overflow-hidden relative group">
-              <div className="absolute right-0 top-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
-                <TrendingUp className="w-20 h-20 text-emerald-600" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-white/60 relative overflow-hidden group">
+              <div className="absolute -right-6 -bottom-6 bg-emerald-50 w-40 h-40 rounded-full group-hover:scale-125 transition-transform duration-700 opacity-60"></div>
+              <div className="relative">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-emerald-500" /> Terimaan (In)
+                </p>
+                <h2 className="text-4xl font-black text-emerald-600 tracking-tighter tabular-nums">{formatRM(totals.in)}</h2>
+                <div className="mt-6 flex items-center gap-2">
+                  <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 px-4 py-1.5 rounded-full">{MONTHS[filterMonth]} {filterYear}</span>
+                </div>
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Jumlah Masuk</p>
-              <p className="text-3xl font-black text-slate-900 tracking-tighter">{formatRM(totals.in)}</p>
             </div>
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/60 overflow-hidden relative group">
-              <div className="absolute right-0 top-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
-                <TrendingDown className="w-20 h-20 text-rose-600" />
+
+            <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-white/60 relative overflow-hidden group">
+              <div className="absolute -right-6 -bottom-6 bg-rose-50 w-40 h-40 rounded-full group-hover:scale-125 transition-transform duration-700 opacity-60"></div>
+              <div className="relative">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                  <TrendingDown className="w-4 h-4 text-rose-500" /> Perbelanjaan (Out)
+                </p>
+                <h2 className="text-4xl font-black text-rose-600 tracking-tighter tabular-nums">{formatRM(totals.out)}</h2>
+                <div className="mt-6 flex items-center gap-2">
+                  <span className="text-[9px] font-black uppercase tracking-widest bg-rose-100 text-rose-700 px-4 py-1.5 rounded-full">{MONTHS[filterMonth]} {filterYear}</span>
+                </div>
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Jumlah Keluar</p>
-              <p className="text-3xl font-black text-slate-900 tracking-tighter">{formatRM(totals.out)}</p>
             </div>
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/60 overflow-hidden relative group">
-              <div className="absolute right-0 top-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
-                <LayoutDashboard className="w-20 h-20 text-indigo-600" />
+
+            <div className="bg-[#5D57E7] p-8 rounded-[3rem] shadow-[0_20px_40px_-10px_rgba(93,87,231,0.4)] text-white relative overflow-hidden group">
+               <div className="absolute -right-6 -bottom-6 bg-white/10 w-40 h-40 rounded-full group-hover:scale-125 transition-transform duration-700"></div>
+               <div className="relative">
+                <p className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                  <Wallet className="w-4 h-4" /> Baki Bersih
+                </p>
+                <h2 className="text-4xl font-black tracking-tighter tabular-nums">{formatRM(totals.bal)}</h2>
+                <div className="mt-6 flex items-center gap-2">
+                  <span className="text-[9px] font-black uppercase tracking-widest bg-white/20 text-white px-4 py-1.5 rounded-full backdrop-blur-md">Status Akaun</span>
+                </div>
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Baki Bersih</p>
-              <p className={`text-3xl font-black tracking-tighter ${totals.bal < 0 ? 'text-rose-600' : 'text-indigo-600'}`}>
-                {formatRM(totals.bal)}
-              </p>
             </div>
           </div>
 
-          <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-6 bg-white p-6 rounded-3xl shadow-sm border border-slate-200/60 sticky top-0 z-30">
-            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-1">
-              <div className="flex items-center gap-3 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100 flex-1 md:flex-none min-w-[200px]">
-                <Filter className="w-4 h-4 text-indigo-500" strokeWidth={3} />
-                <select 
-                  className="bg-transparent font-black text-slate-800 focus:outline-none cursor-pointer text-xs uppercase tracking-wider w-full"
-                  value={filterAccount}
-                  onChange={(e) => setFilterAccount(e.target.value)}
-                >
+          {/* Sticky Filters & Action Bar */}
+          <div className="bg-white/80 backdrop-blur-2xl p-6 sm:p-8 rounded-[3rem] shadow-2xl border border-white/40 space-y-6 sticky top-4 z-20">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="relative group">
+                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-500 group-focus-within:scale-110 transition-transform"><Layers className="w-4 h-4" /></div>
+                <select className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-14 py-4 font-black uppercase tracking-widest text-[10px] outline-none focus:border-indigo-500 focus:bg-white transition-all appearance-none cursor-pointer" value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)}>
                   <option value="all">Semua Akaun</option>
                   {ACCOUNTS.map(a => <option key={a} value={a}>{a.toUpperCase()}</option>)}
                 </select>
               </div>
-
-              <div className="flex gap-2">
-                <select 
-                  className="flex-1 md:flex-none bg-slate-50 border border-slate-100 text-slate-800 text-xs rounded-2xl px-5 py-3 font-black uppercase tracking-wider cursor-pointer outline-none hover:bg-slate-100 transition-all focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500"
-                  value={filterYear}
-                  onChange={(e) => setFilterYear(parseInt(e.target.value))}
-                >
+              <div className="grid grid-cols-2 gap-4">
+                <select className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-8 py-4 font-black uppercase tracking-widest text-[10px] outline-none focus:border-indigo-500 focus:bg-white transition-all cursor-pointer" value={filterYear} onChange={(e) => setFilterYear(parseInt(e.target.value))}>
                   {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
-                <select 
-                  className="flex-1 md:flex-none bg-slate-50 border border-slate-100 text-slate-800 text-xs rounded-2xl px-5 py-3 font-black uppercase tracking-wider cursor-pointer outline-none hover:bg-slate-100 transition-all focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500"
-                  value={filterMonth}
-                  onChange={(e) => setFilterMonth(parseInt(e.target.value))}
-                >
+                <select className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-8 py-4 font-black uppercase tracking-widest text-[10px] outline-none focus:border-indigo-500 focus:bg-white transition-all cursor-pointer" value={filterMonth} onChange={(e) => setFilterMonth(parseInt(e.target.value))}>
                   {MONTHS.map((m, i) => <option key={i} value={i}>{m.toUpperCase()}</option>)}
                 </select>
               </div>
+              <div className="relative group">
+                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors"><Search className="w-4 h-4" /></div>
+                <input type="text" placeholder="CARI TRANSAKSI..." className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-14 py-4 text-[10px] font-black uppercase tracking-widest outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              </div>
             </div>
 
-            <button 
-              onClick={() => { setEditingTransaction(null); setModalMode('create'); setIsAddModalOpen(true); }}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl shadow-xl shadow-indigo-500/20 transition-all font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 active:scale-[0.98]"
-            >
-              <PlusCircle className="w-5 h-5" /> Tambah Rekod
+            <button onClick={() => { setEditingTransaction(null); setModalMode('create'); setIsAddModalOpen(true); }} className="w-full bg-[#5D57E7] hover:bg-[#4E48D6] text-white py-5 rounded-[1.5rem] shadow-2xl shadow-indigo-500/30 transition-all font-black uppercase tracking-[0.35em] text-[10px] flex items-center justify-center gap-3 active:scale-[0.98]">
+              <PlusCircle className="w-5 h-5" /> Tambah Rekod Transaksi Baru
             </button>
           </div>
 
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-200/60 overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center bg-slate-50/50 gap-4">
-              <h2 className="font-black text-slate-800 uppercase tracking-widest text-xs flex items-center gap-3">
-                <Table className="w-4 h-4 text-indigo-500" /> Lejer Transaksi (Format Hamparan)
-              </h2>
-              <div className="relative w-full md:w-80">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-slate-400" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Cari transaksi..."
-                  className="pl-12 w-full bg-white border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all placeholder-slate-400 text-slate-700 shadow-sm"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-black tracking-widest">
+          {/* Ledger Table */}
+          <div className="bg-white rounded-[3rem] shadow-2xl border border-white overflow-hidden animate-in fade-in duration-700 delay-200">
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
+                <thead className="bg-slate-50/80 backdrop-blur-md text-slate-400 uppercase text-[10px] font-black tracking-[0.2em] border-b border-slate-100">
                   <tr>
-                    <th className="px-6 py-5">Tarikh</th>
-                    <th className="px-6 py-5">Nama</th>
-                    <th className="px-6 py-5">Butir-butir</th>
-                    <th className="px-6 py-5 text-right">In (RM)</th>
-                    <th className="px-6 py-5 text-right">Out (RM)</th>
-                    <th className="px-6 py-5 text-center">Katagori</th>
-                    <th className="px-6 py-5 text-center">Aksi</th>
+                    <th className="px-10 py-8">Tarikh</th>
+                    <th className="px-10 py-8">Nama / Butiran</th>
+                    <th className="px-10 py-8 text-right">In (RM)</th>
+                    <th className="px-10 py-8 text-right">Out (RM)</th>
+                    <th className="px-10 py-8 text-center">Katagori</th>
+                    <th className="px-10 py-8 text-center">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-50">
                   {filteredTransactions.map(t => (
-                    <tr key={t.id} className="hover:bg-indigo-50/30 transition-colors group">
-                      <td className="px-6 py-5 text-slate-500 text-xs font-black tracking-widest">{formatDate(t.date)}</td>
-                      <td className="px-6 py-5 font-black text-slate-800 text-sm truncate max-w-[150px]">{t.name}</td>
-                      <td className="px-6 py-5 text-[10px] text-slate-400 font-bold truncate max-w-[200px]">{t.details}</td>
-                      <td className="px-6 py-5 text-right font-black text-emerald-600 text-base">
-                        {t.type === 'in' ? formatRM(t.amount) : '—'}
+                    <tr key={t.id} className="hover:bg-indigo-50/40 transition-all duration-300 group">
+                      <td className="px-10 py-10">
+                        <div className="flex items-center gap-3">
+                           <div className={`w-2.5 h-2.5 rounded-full ${t.type === 'in' ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.5)]' : 'bg-rose-400 shadow-[0_0_12px_rgba(251,113,133,0.5)]'}`}></div>
+                           <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{formatDate(t.date)}</span>
+                        </div>
                       </td>
-                      <td className="px-6 py-5 text-right font-black text-rose-600 text-base">
-                        {t.type === 'out' ? formatRM(t.amount) : '—'}
+                      <td className="px-10 py-10">
+                        <div className="flex flex-col">
+                          <span className="font-black text-slate-800 text-sm tracking-tight group-hover:text-indigo-600 transition-colors">{t.name}</span>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate max-w-[280px] mt-1">{t.details}</span>
+                        </div>
                       </td>
-                      <td className="px-6 py-5 text-center">
-                        <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border ${
-                          t.category === 'Office' ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                          t.category === 'Dokumen' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                          t.category === 'Fee' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                          t.category === 'Mahkamah' ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                          'bg-slate-50 text-slate-500 border-slate-100'
-                        }`}>
-                          {t.category}
+                      <td className="px-10 py-10 text-right">
+                        <span className={`font-black text-xl tracking-tighter tabular-nums ${t.type === 'in' ? 'text-emerald-600' : 'text-slate-200'}`}>
+                          {t.type === 'in' ? formatRM(t.amount) : '—'}
                         </span>
                       </td>
-                      <td className="px-6 py-5">
-                        <div className="flex justify-center gap-2">
-                          <button onClick={() => printReceipt(t)} className="p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-white border border-slate-100 transition-all shadow-sm">
-                            <Printer className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleEdit(t)} className="p-2.5 bg-slate-50 text-indigo-600 rounded-xl hover:bg-white border border-slate-100 transition-all shadow-sm">
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDeleteTransaction(t.id)} className="p-2.5 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-all border border-rose-100 shadow-sm">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                      <td className="px-10 py-10 text-right">
+                        <span className={`font-black text-xl tracking-tighter tabular-nums ${t.type === 'out' ? 'text-rose-600' : 'text-slate-200'}`}>
+                          {t.type === 'out' ? formatRM(t.amount) : '—'}
+                        </span>
+                      </td>
+                      <td className="px-10 py-10 text-center">
+                        <span className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest bg-slate-100 text-slate-500 border border-slate-200 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all">
+                          {t.category.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-10 py-10">
+                        <div className="flex justify-center items-center gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => printReceipt(t)} className="w-11 h-11 flex items-center justify-center bg-slate-50 text-slate-500 hover:bg-white hover:text-indigo-600 hover:shadow-lg rounded-2xl transition-all border border-slate-100 active:scale-90" title="Cetak Resit"><Printer className="w-5 h-5" /></button>
+                          <button onClick={() => handleCopy(t)} className="w-11 h-11 flex items-center justify-center bg-amber-50 text-amber-500 hover:bg-amber-500 hover:text-white hover:shadow-lg rounded-2xl transition-all border border-amber-100 active:scale-90" title="Salin"><Copy className="w-5 h-5" /></button>
+                          <button onClick={() => handleEdit(t)} className="w-11 h-11 flex items-center justify-center bg-indigo-50 text-indigo-500 hover:bg-indigo-600 hover:text-white hover:shadow-lg rounded-2xl transition-all border border-indigo-100 active:scale-90" title="Edit"><Pencil className="w-5 h-5" /></button>
+                          <button onClick={() => handleDeleteTransaction(t.id)} className="w-11 h-11 flex items-center justify-center bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white hover:shadow-lg rounded-2xl transition-all border border-rose-100 active:scale-90" title="Hapus"><Trash2 className="w-5 h-5" /></button>
                         </div>
                       </td>
                     </tr>
                   ))}
                   {filteredTransactions.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-24 text-center">
-                        <div className="flex flex-col items-center gap-4 text-slate-200">
-                          <Search className="w-16 h-16" />
-                          <p className="text-lg font-black uppercase tracking-[0.2em]">Tiada rekod dijumpai</p>
+                      <td colSpan={6} className="py-40 text-center">
+                        <div className="flex flex-col items-center gap-4 text-slate-300">
+                          <History className="w-16 h-16 opacity-10" />
+                          <p className="font-black uppercase tracking-[0.4em] text-[10px] opacity-40">TIADA REKOD TRANSAKSI</p>
                         </div>
                       </td>
                     </tr>
@@ -584,7 +487,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <TransactionFormModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleSaveTransaction} initialData={editingTransaction} mode={modalMode} />
+      <TransactionFormModal isOpen={isAddModalOpen} onClose={() => { setIsAddModalOpen(false); setEditingTransaction(null); setModalMode('create'); }} onSave={handleSaveTransaction} initialData={editingTransaction} mode={modalMode} />
       <InvoiceModal isOpen={isInvoiceModalOpen} onClose={() => setIsInvoiceModalOpen(false)} invoices={invoices} onAddInvoice={handleAddInvoice} onDeleteInvoice={handleDeleteInvoice} onPayInvoice={handlePayInvoice} />
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} transactions={transactions} year={filterYear} />
       <AccountStatementModal isOpen={isStatementModalOpen} onClose={() => setIsStatementModalOpen(false)} transactions={transactions} />
