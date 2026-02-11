@@ -13,7 +13,9 @@
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
-            background-color: #f8fafc;
+            background-color: #F5F7F9;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         
         /* Utility to hide scrollbar but allow scrolling */
@@ -27,8 +29,27 @@
 
         /* Custom selection color */
         ::selection {
-            background-color: rgba(79, 70, 229, 0.1);
+            background-color: rgba(93, 87, 231, 0.2);
             color: #4f46e5;
+        }
+
+        /* Smooth transitions for all elements */
+        * {
+            transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 150ms;
+        }
+
+        /* Better focus rings */
+        :focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(93, 87, 231, 0.15);
+        }
+
+        /* Standard input styles */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.5);
+            cursor: pointer;
         }
     </style>
 <script type="importmap">
@@ -38,12 +59,13 @@
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react/": "https://esm.sh/react@^19.2.4/",
     "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "recharts": "https://esm.sh/recharts@^3.7.0"
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.48.1"
   }
 }
 </script>
 </head>
-<body class="text-gray-800 antialiased h-screen flex flex-col overflow-hidden supports-[height:100dvh]:h-[100dvh]">
+<body class="text-slate-800 antialiased h-screen flex flex-col overflow-hidden supports-[height:100dvh]:h-[100dvh]">
     <div id="root" class="h-full flex flex-col"></div>
 </body>
 </html>

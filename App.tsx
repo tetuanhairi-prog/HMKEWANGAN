@@ -1,17 +1,20 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Scale, FileText, Table, Download, Upload, Power, 
-  Filter, PlusCircle, Trash2, Printer, Copy, Search, AlertCircle, Pencil, Lock, LogOut,
-  ArrowRightLeft, TrendingUp, TrendingDown, LayoutDashboard, Check, Wallet, History,
-  Layers, ChevronRight, Activity
+  Scale, FileText, Download, Upload, RefreshCw,
+  PlusCircle, Trash2, Printer, Copy, Search, AlertCircle, Pencil, Lock, LogOut,
+  ArrowRightLeft, TrendingUp, TrendingDown, Check, Wallet, History,
+  Layers, ChevronRight, Activity, Calendar as CalendarIcon, PieChart, Loader2, Cloud, CloudOff
 } from 'lucide-react';
 import { ACCOUNTS, MONTHS, Transaction, Invoice } from './types';
 import { formatRM, formatDate, printReceipt } from './utils/printUtils';
+import { supabase } from './supabase';
 
 import TransactionFormModal from './components/TransactionFormModal';
 import InvoiceModal from './components/InvoiceModal';
 import ReportModal from './components/ReportModal';
 import AccountStatementModal from './components/AccountStatementModal';
+import DashboardCharts from './components/DashboardCharts';
 
 const App: React.FC = () => {
   // --- Auth State ---
@@ -22,15 +25,11 @@ const App: React.FC = () => {
   const [loginError, setLoginError] = useState('');
 
   // --- Data State ---
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('hma_db_trans');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
-  const [invoices, setInvoices] = useState<Invoice[]>(() => {
-    const saved = localStorage.getItem('hma_db_invoices');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isCloudConnected] = useState(!!supabase);
 
   // Filters
   const currentYear = new Date().getFullYear();
@@ -49,14 +48,51 @@ const App: React.FC = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [showBackupAlert, setShowBackupAlert] = useState(false);
 
-  // --- Effects ---
-  useEffect(() => {
-    localStorage.setItem('hma_db_trans', JSON.stringify(transactions));
-  }, [transactions]);
+  // --- Data Fetching ---
+  const fetchData = async (isManual = false) => {
+    if (isManual) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      if (supabase) {
+        const [transRes, invRes] = await Promise.all([
+          supabase.from('transactions').select('*').order('date', { ascending: false }),
+          supabase.from('invoices').select('*').order('date', { ascending: false })
+        ]);
+
+        if (transRes.error) throw transRes.error;
+        if (invRes.error) throw invRes.error;
+
+        setTransactions(transRes.data || []);
+        setInvoices(invRes.data || []);
+      } else {
+        const localTrans = localStorage.getItem('hma_transactions');
+        const localInvs = localStorage.getItem('hma_invoices');
+        setTransactions(localTrans ? JSON.parse(localTrans) : []);
+        setInvoices(localInvs ? JSON.parse(localInvs) : []);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      const localTrans = localStorage.getItem('hma_transactions');
+      const localInvs = localStorage.getItem('hma_invoices');
+      setTransactions(localTrans ? JSON.parse(localTrans) : []);
+      setInvoices(localInvs ? JSON.parse(localInvs) : []);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem('hma_db_invoices', JSON.stringify(invoices));
-  }, [invoices]);
+    if (isAuthenticated) {
+      fetchData();
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (transactions.length > 0) localStorage.setItem('hma_transactions', JSON.stringify(transactions));
+    if (invoices.length > 0) localStorage.setItem('hma_invoices', JSON.stringify(invoices));
+  }, [transactions, invoices]);
 
   useEffect(() => {
     const lastBackup = localStorage.getItem('hma_last_backup');
@@ -68,7 +104,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // --- Computed Data ---
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
       const d = new Date(t.date);
@@ -89,7 +124,6 @@ const App: React.FC = () => {
     return { in: tIn, out: tOut, bal: tIn - tOut };
   }, [filteredTransactions]);
 
-  // --- Handlers ---
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput === '025495') {
@@ -108,22 +142,43 @@ const App: React.FC = () => {
     sessionStorage.removeItem('hma_auth');
   };
 
-  const handleSaveTransaction = (t: Omit<Transaction, 'id'>) => {
-    if (modalMode === 'edit' && editingTransaction) {
-      setTransactions(prev => prev.map(tr => 
-        tr.id === editingTransaction.id ? { ...t, id: editingTransaction.id } : tr
-      ));
-    } else {
-      const newTrans = { ...t, id: Date.now() };
-      setTransactions(prev => [newTrans, ...prev]);
+  const handleSaveTransaction = async (t: Omit<Transaction, 'id'>) => {
+    const transactionId = modalMode === 'edit' && editingTransaction ? editingTransaction.id : Date.now();
+    const newTransaction = { ...t, id: transactionId };
+
+    try {
+      if (supabase) {
+        const { error } = await supabase.from('transactions').upsert(newTransaction);
+        if (error) throw error;
+      }
+      
+      if (modalMode === 'edit' && editingTransaction) {
+        setTransactions(prev => prev.map(tr => tr.id === transactionId ? newTransaction : tr));
+      } else {
+        setTransactions(prev => [newTransaction, ...prev]);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Simpanan awan gagal. Data disimpan secara lokal.");
+      setTransactions(prev => [newTransaction, ...prev.filter(tr => tr.id !== transactionId)]);
+    } finally {
+      setEditingTransaction(null);
+      setModalMode('create');
     }
-    setEditingTransaction(null);
-    setModalMode('create');
   };
 
-  const handleDeleteTransaction = (id: number) => {
+  const handleDeleteTransaction = async (id: number) => {
     if (confirm('Padam transaksi ini secara kekal?')) {
-      setTransactions(prev => prev.filter(t => t.id !== id));
+      try {
+        if (supabase) {
+          const { error } = await supabase.from('transactions').delete().eq('id', id);
+          if (error) throw error;
+        }
+        setTransactions(prev => prev.filter(t => t.id !== id));
+      } catch (error) {
+        alert("Gagal memadam transaksi daripada awan.");
+        setTransactions(prev => prev.filter(t => t.id !== id));
+      }
     }
   };
 
@@ -139,27 +194,46 @@ const App: React.FC = () => {
     setIsAddModalOpen(true);
   };
 
-  const handleAddInvoice = (inv: Omit<Invoice, 'id' | 'status' | 'date'>) => {
+  const handleAddInvoice = async (inv: Omit<Invoice, 'id' | 'status' | 'date'>) => {
     const newInv: Invoice = {
       ...inv,
       id: Date.now(),
       status: 'unpaid',
       date: new Date().toISOString().split('T')[0]
     };
-    setInvoices(prev => [newInv, ...prev]);
-  };
-
-  const handleDeleteInvoice = (id: number) => {
-    if (confirm('Padam invois ini secara kekal?')) {
-      setInvoices(prev => prev.filter(inv => inv.id !== id));
+    
+    try {
+      if (supabase) {
+        const { error } = await supabase.from('invoices').insert(newInv);
+        if (error) throw error;
+      }
+      setInvoices(prev => [newInv, ...prev]);
+    } catch (error) {
+      alert("Gagal menyimpan invois ke awan.");
+      setInvoices(prev => [newInv, ...prev]);
     }
   };
 
-  const handlePayInvoice = (inv: Invoice) => {
-    setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: 'paid' } : i));
+  const handleDeleteInvoice = async (id: number) => {
+    if (confirm('Padam invois ini secara kekal?')) {
+      try {
+        if (supabase) {
+          const { error } = await supabase.from('invoices').delete().eq('id', id);
+          if (error) throw error;
+        }
+        setInvoices(prev => prev.filter(inv => inv.id !== id));
+      } catch (error) {
+        alert("Gagal memadam invois.");
+        setInvoices(prev => prev.filter(inv => inv.id !== id));
+      }
+    }
+  };
+
+  const handlePayInvoice = async (inv: Invoice) => {
+    const transDate = new Date().toISOString().split('T')[0];
     const newTrans: Transaction = {
       id: Date.now(),
-      date: new Date().toISOString().split('T')[0],
+      date: transDate,
       type: 'in',
       account: "Akaun Pejabat",
       amount: inv.amount,
@@ -167,7 +241,22 @@ const App: React.FC = () => {
       category: "Legal Fee",
       details: `Bayaran Invois: ${inv.no} - ${inv.desc}`
     };
-    setTransactions(prev => [newTrans, ...prev]);
+
+    try {
+      if (supabase) {
+        const { error: invErr } = await supabase.from('invoices').update({ status: 'paid' }).eq('id', inv.id);
+        if (invErr) throw invErr;
+        const { error: transErr } = await supabase.from('transactions').insert(newTrans);
+        if (transErr) throw transErr;
+      }
+
+      setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: 'paid' } : i));
+      setTransactions(prev => [newTrans, ...prev]);
+    } catch (error) {
+      alert("Gagal memproses bayaran invois ke awan.");
+      setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: 'paid' } : i));
+      setTransactions(prev => [newTrans, ...prev]);
+    }
   };
 
   const handleExport = () => {
@@ -177,7 +266,6 @@ const App: React.FC = () => {
     const headers = ["Tarikh", "Nama", "Butir-butir", "In", "Out", "Katagori"];
     let csvContent = headers.join(",") + "\n";
     
-    // Sort transactions by date ascending for the export
     [...transactions].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).forEach(t => {
       const formattedDate = formatDate(t.date); 
       const row = [
@@ -201,12 +289,12 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const content = evt.target?.result as string;
         const lines = content.split(/\r?\n/).filter(line => line.trim() !== "");
@@ -225,7 +313,6 @@ const App: React.FC = () => {
             return parseFloat(sanitized);
           };
           const parseDateString = (dateStr: string) => {
-            // dd/mm/yyyy
             const parts = dateStr.split('/');
             if (parts.length === 3) {
               const d = parts[0].padStart(2, '0');
@@ -234,7 +321,6 @@ const App: React.FC = () => {
               if (y.length === 2) y = `20${y}`;
               return `${y}-${m}-${d}`;
             }
-            // yyyy-mm-dd
             if (dateStr.includes('-')) {
                const isoParts = dateStr.split('-');
                if (isoParts[0].length === 4) return dateStr;
@@ -260,10 +346,16 @@ const App: React.FC = () => {
             details: cleanStr(c[2])
           });
         }
+        
+        if (supabase) {
+          const { error } = await supabase.from('transactions').insert(newTrans);
+          if (error) throw error;
+        }
+
         setTransactions(prev => [...newTrans, ...prev]);
         alert(`${newTrans.length} rekod berjaya diimport!`);
       } catch (err) {
-        alert("Gagal membaca fail CSV. Pastikan format adalah betul.");
+        alert("Gagal membaca fail CSV.");
       }
     };
     reader.readAsText(file);
@@ -272,28 +364,29 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#0A1128] flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-10 rounded-[3rem] shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 border border-slate-200">
-          <div className="flex flex-col items-center mb-10">
-            <div className="bg-gradient-to-tr from-indigo-600 to-indigo-400 p-6 rounded-[2.5rem] shadow-xl mb-6 ring-8 ring-indigo-50">
-              <Lock className="w-10 h-10 text-white" strokeWidth={2.5} />
+      <div className="min-h-screen bg-[#0A1128] flex flex-col items-center justify-center p-6 sm:p-4">
+        <div className="bg-white p-12 rounded-[4rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] w-full max-w-md animate-in fade-in zoom-in-95 border border-white/20">
+          <div className="flex flex-col items-center mb-12">
+            <div className="bg-gradient-to-tr from-[#5D57E7] to-[#8E89F2] p-8 rounded-[2.5rem] shadow-2xl mb-8 ring-[12px] ring-indigo-50">
+              <Lock className="w-12 h-12 text-white" strokeWidth={2.5} />
             </div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Sistem HMA</h1>
-            <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-[10px]">Hairi Mustafa Associates</p>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tighter">Sistem HMA</h1>
+            <p className="text-slate-400 font-black mt-2 uppercase tracking-[0.3em] text-[10px]">Hairi Mustafa Associates</p>
           </div>
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="relative group">
+          <form onSubmit={handleLogin} className="space-y-8">
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-4">Pengesahan Keselamatan</label>
               <input
                 type="password"
-                placeholder="Kata Laluan"
-                className={`w-full bg-slate-50 border-2 rounded-2xl px-6 py-5 text-center text-xl tracking-[0.4em] font-black outline-none transition-all ${loginError ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-100 focus:border-indigo-500 focus:bg-white focus:ring-8 focus:ring-indigo-500/10 text-slate-800'}`}
+                placeholder="••••••"
+                className={`w-full bg-slate-50 border-2 rounded-[1.5rem] px-8 py-6 text-center text-2xl tracking-[0.5em] font-black outline-none transition-all ${loginError ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-100 focus:border-indigo-500 focus:bg-white focus:ring-[15px] focus:ring-indigo-500/5 text-slate-800'}`}
                 value={passwordInput}
                 onChange={(e) => { setPasswordInput(e.target.value); setLoginError(''); }}
                 autoFocus
               />
             </div>
             {loginError && <p className="text-center text-rose-600 text-[10px] font-black uppercase tracking-widest animate-pulse">{loginError}</p>}
-            <button type="submit" className="w-full bg-[#5D57E7] hover:bg-[#4E48D6] text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-xl active:scale-[0.98]">Masuk Sekarang</button>
+            <button type="submit" className="w-full bg-[#5D57E7] hover:bg-[#4E48D6] text-white py-6 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.4em] transition-all shadow-2xl shadow-indigo-500/30 active:scale-[0.98]">Masuk Sistem</button>
           </form>
         </div>
       </div>
@@ -301,192 +394,242 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[#F0F2F5] font-sans selection:bg-indigo-100 selection:text-indigo-700">
-      <nav className="bg-[#0A1128] text-white shadow-2xl z-40 flex-none px-6">
-        <div className="max-w-7xl mx-auto h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4 group cursor-default">
-            <div className="bg-indigo-600 p-2.5 rounded-2xl shadow-indigo-500/30 shadow-lg group-hover:scale-110 transition-transform">
-              <Scale className="w-6 h-6 text-white" strokeWidth={2.5} />
+    <div className="flex flex-col h-screen bg-[#F5F7F9] font-sans selection:bg-indigo-100 selection:text-indigo-700">
+      <nav className="bg-[#0A1128] text-white shadow-[0_15px_50px_-15px_rgba(10,17,40,0.4)] z-40 flex-none px-8">
+        <div className="max-w-7xl mx-auto h-24 flex items-center justify-between">
+          <div className="flex items-center gap-5 group cursor-default">
+            <div className="bg-indigo-600 p-3 rounded-[1.25rem] shadow-2xl shadow-indigo-500/40 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+              <Scale className="w-7 h-7 text-white" strokeWidth={2.5} />
             </div>
             <div>
-              <h1 className="font-black text-xl tracking-tighter uppercase leading-none">Hairi Mustafa Associates</h1>
-              <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-1 opacity-80">Legal Management System</p>
+              <h1 className="font-black text-2xl tracking-tighter uppercase leading-none">HMA Associates</h1>
+              <div className="flex items-center gap-2 mt-2">
+                <p className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.3em] opacity-80">Legal Financial Cloud</p>
+                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${isCloudConnected ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${isCloudConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-50'}`}></div>
+                  <span className={`text-[8px] font-black uppercase tracking-widest ${isCloudConnected ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {isCloudConnected ? 'Connected' : 'Local Mode'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <div className="hidden lg:flex items-center gap-2 mr-4">
-              <button onClick={() => setIsInvoiceModalOpen(true)} className="p-2.5 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600/20 rounded-xl border border-indigo-600/10 transition-all active:scale-95" title="Invois"><FileText className="w-5 h-5" /></button>
-              <button onClick={() => setIsStatementModalOpen(true)} className="p-2.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all border border-slate-700 active:scale-95" title="Penyata"><ArrowRightLeft className="w-5 h-5" /></button>
-              <button onClick={() => setIsReportModalOpen(true)} className="p-2.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all border border-slate-700 active:scale-95" title="Laporan"><Table className="w-5 h-5" /></button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => fetchData(true)} 
+              className={`p-3.5 bg-slate-800/50 text-slate-300 hover:text-white rounded-[1rem] transition-all border border-slate-700/50 active:scale-95 shadow-sm mr-2 ${refreshing ? 'animate-spin text-indigo-400' : ''}`}
+              title="Refresh Data"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+            <div className="hidden lg:flex items-center gap-3 mr-4">
+              <button onClick={() => setIsInvoiceModalOpen(true)} className="flex items-center gap-3 px-6 py-3.5 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-[1rem] border border-indigo-600/20 transition-all font-black uppercase text-[10px] tracking-widest active:scale-95 shadow-sm">
+                <FileText className="w-4 h-4" /> Invois
+              </button>
+              <button onClick={() => setIsStatementModalOpen(true)} className="flex items-center gap-3 px-6 py-3.5 bg-slate-800/50 text-slate-300 hover:text-white hover:bg-slate-800 rounded-[1rem] transition-all border border-slate-700/50 font-black uppercase text-[10px] tracking-widest active:scale-95">
+                <ArrowRightLeft className="w-4 h-4" /> Penyata
+              </button>
+              <button onClick={() => setIsReportModalOpen(true)} className="flex items-center gap-3 px-6 py-3.5 bg-slate-800/50 text-slate-300 hover:text-white hover:bg-slate-800 rounded-[1rem] transition-all border border-slate-700/50 font-black uppercase text-[10px] tracking-widest active:scale-95">
+                <PieChart className="w-4 h-4" /> Laporan
+              </button>
             </div>
-            <div className="h-8 w-px bg-white/10 mx-2 hidden lg:block"></div>
-            <div className="flex items-center gap-2">
-              <button onClick={handleExport} className="p-2.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all border border-slate-700 active:scale-95" title="Export CSV"><Download className="w-5 h-5" /></button>
-              <label className="p-2.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all border border-slate-700 cursor-pointer active:scale-95" title="Import CSV">
+            <div className="flex items-center gap-3 border-l border-white/10 pl-5">
+              <button onClick={handleExport} className="p-3.5 bg-slate-800/50 text-slate-300 hover:text-white rounded-[1rem] transition-all border border-slate-700/50 active:scale-95 shadow-sm" title="Backup Database"><Download className="w-5 h-5" /></button>
+              <label className="p-3.5 bg-slate-800/50 text-slate-300 hover:text-white rounded-[1rem] transition-all border border-slate-700/50 cursor-pointer active:scale-95 shadow-sm" title="Pulihkan Data">
                 <Upload className="w-5 h-5" />
                 <input type="file" accept=".csv" className="hidden" onChange={handleImport} />
               </label>
-              <button onClick={() => { if(confirm("Hapus semua data secara kekal?")) { setTransactions([]); setInvoices([]); } }} className="p-2.5 bg-rose-600/10 text-rose-500 hover:bg-rose-600/20 rounded-xl border border-rose-600/10 transition-all active:scale-95" title="Reset Data"><Power className="w-5 h-5" /></button>
-              <button onClick={handleLogout} className="p-2.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all border border-slate-700 ml-2 active:scale-95" title="Log Keluar"><LogOut className="w-5 h-5" /></button>
+              <button onClick={handleLogout} className="p-3.5 bg-rose-600/10 text-rose-400 hover:bg-rose-600 hover:text-white rounded-[1rem] transition-all border border-rose-600/20 ml-3 active:scale-95 shadow-sm" title="Log Keluar"><LogOut className="w-5 h-5" /></button>
             </div>
           </div>
         </div>
       </nav>
 
       {showBackupAlert && (
-        <div className="bg-[#F59E0B] text-white px-6 py-3 shadow-lg flex items-center justify-center gap-4 animate-in slide-in-from-top-4 z-30">
-          <AlertCircle className="w-5 h-5 animate-bounce" />
-          <span className="font-black uppercase tracking-widest text-[10px] sm:text-xs">Sila buat 'Backup' data (Eksport CSV) hari ini.</span>
-          <button onClick={handleExport} className="bg-white text-[#F59E0B] px-6 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-amber-50 transition-colors shadow-sm">Backup Sekarang</button>
+        <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-8 py-4 shadow-2xl flex items-center justify-center gap-6 animate-in slide-in-from-top-full z-30">
+          <div className="bg-white/20 p-2 rounded-lg animate-pulse">
+            <AlertCircle className="w-5 h-5" strokeWidth={3} />
+          </div>
+          <span className="font-black uppercase tracking-[0.2em] text-[10px] sm:text-xs">Sila buat salinan pangkalan data (Backup) hari ini.</span>
+          <button onClick={handleExport} className="bg-white text-orange-600 px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-50 transition-all shadow-xl active:scale-95">Salin Sekarang</button>
         </div>
       )}
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-10 no-scrollbar">
-        <div className="max-w-7xl mx-auto space-y-10 pb-20">
-          
-          {/* Dashboard Summary Widgets */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-white/60 relative overflow-hidden group">
-              <div className="absolute -right-6 -bottom-6 bg-emerald-50 w-40 h-40 rounded-full group-hover:scale-125 transition-transform duration-700 opacity-60"></div>
+      <main className="flex-1 overflow-y-auto p-6 md:p-12 no-scrollbar">
+        <div className="max-w-7xl mx-auto space-y-12 pb-32">
+          {/* Summary Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <div className="bg-white p-10 rounded-[3.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-white relative overflow-hidden group">
+              <div className="absolute -right-10 -bottom-10 bg-emerald-50 w-48 h-48 rounded-full group-hover:scale-125 transition-transform duration-1000 opacity-60"></div>
               <div className="relative">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-500" /> Terimaan (In)
-                </p>
-                <h2 className="text-4xl font-black text-emerald-600 tracking-tighter tabular-nums">{formatRM(totals.in)}</h2>
-                <div className="mt-6 flex items-center gap-2">
-                  <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 px-4 py-1.5 rounded-full">{MONTHS[filterMonth]} {filterYear}</span>
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="p-3 bg-emerald-100 text-emerald-600 rounded-2xl"><TrendingUp className="w-5 h-5" strokeWidth={3} /></div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Terimaan Tunai</p>
+                </div>
+                <h2 className="text-5xl font-black text-emerald-600 tracking-tighter tabular-nums">{formatRM(totals.in)}</h2>
+                <div className="mt-8 flex items-center gap-3">
+                  <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 px-5 py-2 rounded-full border border-emerald-100">{MONTHS[filterMonth]} {filterYear}</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-white/60 relative overflow-hidden group">
-              <div className="absolute -right-6 -bottom-6 bg-rose-50 w-40 h-40 rounded-full group-hover:scale-125 transition-transform duration-700 opacity-60"></div>
+            <div className="bg-white p-10 rounded-[3.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-white relative overflow-hidden group">
+              <div className="absolute -right-10 -bottom-10 bg-rose-50 w-48 h-48 rounded-full group-hover:scale-125 transition-transform duration-1000 opacity-60"></div>
               <div className="relative">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                  <TrendingDown className="w-4 h-4 text-rose-500" /> Perbelanjaan (Out)
-                </p>
-                <h2 className="text-4xl font-black text-rose-600 tracking-tighter tabular-nums">{formatRM(totals.out)}</h2>
-                <div className="mt-6 flex items-center gap-2">
-                  <span className="text-[9px] font-black uppercase tracking-widest bg-rose-100 text-rose-700 px-4 py-1.5 rounded-full">{MONTHS[filterMonth]} {filterYear}</span>
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="p-3 bg-rose-100 text-rose-600 rounded-2xl"><TrendingDown className="w-5 h-5" strokeWidth={3} /></div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Perbelanjaan Kasar</p>
+                </div>
+                <h2 className="text-5xl font-black text-rose-600 tracking-tighter tabular-nums">{formatRM(totals.out)}</h2>
+                <div className="mt-8 flex items-center gap-3">
+                  <span className="text-[9px] font-black uppercase tracking-widest bg-rose-50 text-rose-700 px-5 py-2 rounded-full border border-rose-100">{MONTHS[filterMonth]} {filterYear}</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#5D57E7] p-8 rounded-[3rem] shadow-[0_20px_40px_-10px_rgba(93,87,231,0.4)] text-white relative overflow-hidden group">
-               <div className="absolute -right-6 -bottom-6 bg-white/10 w-40 h-40 rounded-full group-hover:scale-125 transition-transform duration-700"></div>
+            <div className="bg-gradient-to-br from-[#5D57E7] to-[#4E48D6] p-10 rounded-[3.5rem] shadow-[0_30px_70px_-15px_rgba(93,87,231,0.5)] text-white relative overflow-hidden group">
+               <div className="absolute -right-10 -bottom-10 bg-white/10 w-48 h-48 rounded-full group-hover:scale-125 transition-transform duration-1000"></div>
                <div className="relative">
-                <p className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                  <Wallet className="w-4 h-4" /> Baki Bersih
-                </p>
-                <h2 className="text-4xl font-black tracking-tighter tabular-nums">{formatRM(totals.bal)}</h2>
-                <div className="mt-6 flex items-center gap-2">
-                  <span className="text-[9px] font-black uppercase tracking-widest bg-white/20 text-white px-4 py-1.5 rounded-full backdrop-blur-md">Status Akaun</span>
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="p-3 bg-white/20 text-white rounded-2xl backdrop-blur-md"><Wallet className="w-5 h-5" strokeWidth={3} /></div>
+                  <p className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.3em]">Kecairan Semasa</p>
+                </div>
+                <h2 className="text-5xl font-black tracking-tighter tabular-nums">{formatRM(totals.bal)}</h2>
+                <div className="mt-8 flex items-center gap-3">
+                  <span className="text-[9px] font-black uppercase tracking-widest bg-white/20 text-white px-5 py-2 rounded-full backdrop-blur-md border border-white/20">Baki Bersih</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Sticky Filters & Action Bar */}
-          <div className="bg-white/80 backdrop-blur-2xl p-6 sm:p-8 rounded-[3rem] shadow-2xl border border-white/40 space-y-6 sticky top-4 z-20">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Visual Analytics Section */}
+          {!loading && (
+            <DashboardCharts 
+              transactions={transactions} 
+              year={filterYear} 
+              month={filterMonth} 
+            />
+          )}
+
+          {/* Filters & Actions Bar */}
+          <div className="bg-white/90 backdrop-blur-3xl p-8 sm:p-10 rounded-[3.5rem] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.1)] border border-white/60 space-y-8 sticky top-6 z-20">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="relative group">
-                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-500 group-focus-within:scale-110 transition-transform"><Layers className="w-4 h-4" /></div>
-                <select className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-14 py-4 font-black uppercase tracking-widest text-[10px] outline-none focus:border-indigo-500 focus:bg-white transition-all appearance-none cursor-pointer" value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)}>
-                  <option value="all">Semua Akaun</option>
+                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-500 group-focus-within:scale-110 group-focus-within:rotate-12 transition-all"><Layers className="w-4.5 h-4.5" strokeWidth={2.5} /></div>
+                <select className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.25rem] px-16 py-5 font-black uppercase tracking-[0.2em] text-[10px] outline-none focus:border-indigo-500 focus:bg-white focus:ring-[15px] focus:ring-indigo-500/5 transition-all appearance-none cursor-pointer text-slate-700 shadow-inner" value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)}>
+                  <option value="all">Semua Akaun Firma</option>
                   {ACCOUNTS.map(a => <option key={a} value={a}>{a.toUpperCase()}</option>)}
                 </select>
+                <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 pointer-events-none rotate-90" />
               </div>
+
               <div className="grid grid-cols-2 gap-4">
-                <select className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-8 py-4 font-black uppercase tracking-widest text-[10px] outline-none focus:border-indigo-500 focus:bg-white transition-all cursor-pointer" value={filterYear} onChange={(e) => setFilterYear(parseInt(e.target.value))}>
-                  {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-                <select className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-8 py-4 font-black uppercase tracking-widest text-[10px] outline-none focus:border-indigo-500 focus:bg-white transition-all cursor-pointer" value={filterMonth} onChange={(e) => setFilterMonth(parseInt(e.target.value))}>
-                  {MONTHS.map((m, i) => <option key={i} value={i}>{m.toUpperCase()}</option>)}
-                </select>
+                <div className="relative group">
+                   <select className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.25rem] px-8 py-5 font-black uppercase tracking-[0.2em] text-[10px] outline-none focus:border-indigo-500 focus:bg-white focus:ring-[15px] focus:ring-indigo-500/5 transition-all appearance-none cursor-pointer text-slate-700 shadow-inner" value={filterYear} onChange={(e) => setFilterYear(parseInt(e.target.value))}>
+                    {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                  <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 pointer-events-none rotate-90" />
+                </div>
+                <div className="relative group">
+                  <select className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.25rem] px-8 py-5 font-black uppercase tracking-[0.2em] text-[10px] outline-none focus:border-indigo-500 focus:bg-white focus:ring-[15px] focus:ring-indigo-500/5 transition-all appearance-none cursor-pointer text-slate-700 shadow-inner" value={filterMonth} onChange={(e) => setFilterMonth(parseInt(e.target.value))}>
+                    {MONTHS.map((m, i) => <option key={i} value={i}>{m.toUpperCase()}</option>)}
+                  </select>
+                  <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 pointer-events-none rotate-90" />
+                </div>
               </div>
+
               <div className="relative group">
-                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors"><Search className="w-4 h-4" /></div>
-                <input type="text" placeholder="CARI TRANSAKSI..." className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-14 py-4 text-[10px] font-black uppercase tracking-widest outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors"><Search className="w-4.5 h-4.5" strokeWidth={2.5} /></div>
+                <input type="text" placeholder="CARI TRANSAKSI..." className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.25rem] px-16 py-5 text-[10px] font-black uppercase tracking-[0.25em] outline-none focus:border-indigo-500 focus:bg-white focus:ring-[15px] focus:ring-indigo-500/5 transition-all shadow-inner text-slate-800 placeholder:text-slate-300" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
             </div>
 
-            <button onClick={() => { setEditingTransaction(null); setModalMode('create'); setIsAddModalOpen(true); }} className="w-full bg-[#5D57E7] hover:bg-[#4E48D6] text-white py-5 rounded-[1.5rem] shadow-2xl shadow-indigo-500/30 transition-all font-black uppercase tracking-[0.35em] text-[10px] flex items-center justify-center gap-3 active:scale-[0.98]">
-              <PlusCircle className="w-5 h-5" /> Tambah Rekod Transaksi Baru
+            <button onClick={() => { setEditingTransaction(null); setModalMode('create'); setIsAddModalOpen(true); }} className="w-full bg-gradient-to-r from-[#5D57E7] to-[#4E48D6] hover:scale-[1.01] hover:shadow-[0_20px_60px_-10px_rgba(93,87,231,0.4)] text-white py-6 rounded-[1.75rem] shadow-2xl shadow-indigo-500/30 transition-all font-black uppercase tracking-[0.4em] text-[10px] flex items-center justify-center gap-4 active:scale-[0.98]">
+              <PlusCircle className="w-6 h-6" strokeWidth={2.5} /> Tambah Rekod Kewangan Baru
             </button>
           </div>
 
-          {/* Ledger Table */}
-          <div className="bg-white rounded-[3rem] shadow-2xl border border-white overflow-hidden animate-in fade-in duration-700 delay-200">
-            <div className="overflow-x-auto no-scrollbar">
-              <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
-                <thead className="bg-slate-50/80 backdrop-blur-md text-slate-400 uppercase text-[10px] font-black tracking-[0.2em] border-b border-slate-100">
-                  <tr>
-                    <th className="px-10 py-8">Tarikh</th>
-                    <th className="px-10 py-8">Nama / Butiran</th>
-                    <th className="px-10 py-8 text-right">In (RM)</th>
-                    <th className="px-10 py-8 text-right">Out (RM)</th>
-                    <th className="px-10 py-8 text-center">Katagori</th>
-                    <th className="px-10 py-8 text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {filteredTransactions.map(t => (
-                    <tr key={t.id} className="hover:bg-indigo-50/40 transition-all duration-300 group">
-                      <td className="px-10 py-10">
-                        <div className="flex items-center gap-3">
-                           <div className={`w-2.5 h-2.5 rounded-full ${t.type === 'in' ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.5)]' : 'bg-rose-400 shadow-[0_0_12px_rgba(251,113,133,0.5)]'}`}></div>
-                           <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{formatDate(t.date)}</span>
-                        </div>
-                      </td>
-                      <td className="px-10 py-10">
-                        <div className="flex flex-col">
-                          <span className="font-black text-slate-800 text-sm tracking-tight group-hover:text-indigo-600 transition-colors">{t.name}</span>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate max-w-[280px] mt-1">{t.details}</span>
-                        </div>
-                      </td>
-                      <td className="px-10 py-10 text-right">
-                        <span className={`font-black text-xl tracking-tighter tabular-nums ${t.type === 'in' ? 'text-emerald-600' : 'text-slate-200'}`}>
-                          {t.type === 'in' ? formatRM(t.amount) : '—'}
-                        </span>
-                      </td>
-                      <td className="px-10 py-10 text-right">
-                        <span className={`font-black text-xl tracking-tighter tabular-nums ${t.type === 'out' ? 'text-rose-600' : 'text-slate-200'}`}>
-                          {t.type === 'out' ? formatRM(t.amount) : '—'}
-                        </span>
-                      </td>
-                      <td className="px-10 py-10 text-center">
-                        <span className="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest bg-slate-100 text-slate-500 border border-slate-200 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all">
-                          {t.category.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-10 py-10">
-                        <div className="flex justify-center items-center gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => printReceipt(t)} className="w-11 h-11 flex items-center justify-center bg-slate-50 text-slate-500 hover:bg-white hover:text-indigo-600 hover:shadow-lg rounded-2xl transition-all border border-slate-100 active:scale-90" title="Cetak Resit"><Printer className="w-5 h-5" /></button>
-                          <button onClick={() => handleCopy(t)} className="w-11 h-11 flex items-center justify-center bg-amber-50 text-amber-500 hover:bg-amber-500 hover:text-white hover:shadow-lg rounded-2xl transition-all border border-amber-100 active:scale-90" title="Salin"><Copy className="w-5 h-5" /></button>
-                          <button onClick={() => handleEdit(t)} className="w-11 h-11 flex items-center justify-center bg-indigo-50 text-indigo-500 hover:bg-indigo-600 hover:text-white hover:shadow-lg rounded-2xl transition-all border border-indigo-100 active:scale-90" title="Edit"><Pencil className="w-5 h-5" /></button>
-                          <button onClick={() => handleDeleteTransaction(t.id)} className="w-11 h-11 flex items-center justify-center bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white hover:shadow-lg rounded-2xl transition-all border border-rose-100 active:scale-90" title="Hapus"><Trash2 className="w-5 h-5" /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredTransactions.length === 0 && (
+          {/* Transactions Table */}
+          <div className="bg-white rounded-[4rem] shadow-[0_40px_100px_-30px_rgba(0,0,0,0.08)] border border-white overflow-hidden animate-in fade-in duration-1000 delay-300">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-48 gap-4">
+                <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" strokeWidth={3} />
+                <p className="font-black text-slate-400 uppercase tracking-widest text-[11px]">Menyelaras Database...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto no-scrollbar">
+                <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
+                  <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-black tracking-[0.3em] border-b border-slate-100">
                     <tr>
-                      <td colSpan={6} className="py-40 text-center">
-                        <div className="flex flex-col items-center gap-4 text-slate-300">
-                          <History className="w-16 h-16 opacity-10" />
-                          <p className="font-black uppercase tracking-[0.4em] text-[10px] opacity-40">TIADA REKOD TRANSAKSI</p>
-                        </div>
-                      </td>
+                      <th className="px-12 py-10">Kronologi</th>
+                      <th className="px-12 py-10">Butiran Transaksi</th>
+                      <th className="px-12 py-10 text-right">Kredit (+)</th>
+                      <th className="px-12 py-10 text-right">Debit (-)</th>
+                      <th className="px-12 py-10 text-center">Katagori</th>
+                      <th className="px-12 py-10 text-center">Aksi</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50/50">
+                    {filteredTransactions.map(t => (
+                      <tr key={t.id} className="hover:bg-indigo-50/30 transition-all duration-500 group">
+                        <td className="px-12 py-12">
+                          <div className="flex items-center gap-4">
+                             <div className={`w-3 h-3 rounded-full ${t.type === 'in' ? 'bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.6)]' : 'bg-rose-400 shadow-[0_0_15px_rgba(251,113,133,0.6)]'} group-hover:scale-125 transition-transform`}></div>
+                             <span className="text-[12px] font-black text-slate-400 uppercase tracking-widest">{formatDate(t.date)}</span>
+                          </div>
+                        </td>
+                        <td className="px-12 py-12">
+                          <div className="flex flex-col">
+                            <span className="font-black text-slate-900 text-lg tracking-tight group-hover:text-indigo-600 transition-colors duration-300">{t.name}</span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.15em] truncate max-w-[320px] mt-2 group-hover:text-slate-500">{t.details}</span>
+                          </div>
+                        </td>
+                        <td className="px-12 py-12 text-right">
+                          <span className={`font-black text-2xl tracking-tighter tabular-nums ${t.type === 'in' ? 'text-emerald-600' : 'text-slate-100'}`}>
+                            {t.type === 'in' ? formatRM(t.amount) : '—'}
+                          </span>
+                        </td>
+                        <td className="px-12 py-12 text-right">
+                          <span className={`font-black text-2xl tracking-tighter tabular-nums ${t.type === 'out' ? 'text-rose-600' : 'text-slate-100'}`}>
+                            {t.type === 'out' ? formatRM(t.amount) : '—'}
+                          </span>
+                        </td>
+                        <td className="px-12 py-12 text-center">
+                          <span className="px-5 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] bg-slate-50 text-slate-400 border border-slate-100 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 group-hover:shadow-lg group-hover:shadow-indigo-500/20 transition-all duration-500">
+                            {t.category.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="px-12 py-12">
+                          <div className="flex justify-center items-center gap-3 opacity-30 group-hover:opacity-100 transition-all duration-500 group-hover:translate-x-0 translate-x-4">
+                            <button onClick={() => printReceipt(t)} className="w-12 h-12 flex items-center justify-center bg-white text-slate-500 hover:text-indigo-600 hover:shadow-2xl rounded-2xl transition-all border border-slate-100 active:scale-90" title="Cetak Resit"><Printer className="w-5.5 h-5.5" strokeWidth={2.5} /></button>
+                            <button onClick={() => handleCopy(t)} className="w-12 h-12 flex items-center justify-center bg-white text-amber-500 hover:text-amber-600 hover:shadow-2xl rounded-2xl transition-all border border-slate-100 active:scale-90" title="Duplikasi"><Copy className="w-5.5 h-5.5" strokeWidth={2.5} /></button>
+                            <button onClick={() => handleEdit(t)} className="w-12 h-12 flex items-center justify-center bg-white text-indigo-500 hover:text-indigo-600 hover:shadow-2xl rounded-2xl transition-all border border-slate-100 active:scale-90" title="Kemaskini"><Pencil className="w-5.5 h-5.5" strokeWidth={2.5} /></button>
+                            <button onClick={() => handleDeleteTransaction(t.id)} className="w-12 h-12 flex items-center justify-center bg-white text-rose-500 hover:text-rose-600 hover:shadow-2xl rounded-2xl transition-all border border-slate-100 active:scale-90" title="Padam"><Trash2 className="w-5.5 h-5.5" strokeWidth={2.5} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredTransactions.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-64 text-center">
+                          <div className="flex flex-col items-center gap-8 text-slate-200">
+                            <History className="w-24 h-24 opacity-10" strokeWidth={1} />
+                            <p className="font-black uppercase tracking-[0.6em] text-[12px] opacity-40">ARKIB TRANSAKSI KOSONG</p>
+                            <button onClick={() => { setEditingTransaction(null); setIsAddModalOpen(true); }} className="px-10 py-4 bg-slate-100 text-slate-400 hover:bg-indigo-600 hover:text-white rounded-2xl transition-all font-black uppercase text-[10px] tracking-widest mt-4">Mulakan Rekod Pertama</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </main>
 
+      {/* Modals */}
       <TransactionFormModal isOpen={isAddModalOpen} onClose={() => { setIsAddModalOpen(false); setEditingTransaction(null); setModalMode('create'); }} onSave={handleSaveTransaction} initialData={editingTransaction} mode={modalMode} />
       <InvoiceModal isOpen={isInvoiceModalOpen} onClose={() => setIsInvoiceModalOpen(false)} invoices={invoices} onAddInvoice={handleAddInvoice} onDeleteInvoice={handleDeleteInvoice} onPayInvoice={handlePayInvoice} />
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} transactions={transactions} year={filterYear} />

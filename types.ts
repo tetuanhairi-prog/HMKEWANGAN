@@ -26,7 +26,8 @@ export const ACCOUNTS = [
   "Akaun Dokumen",
   "Akaun Tunai",
   "Akaun Partner",
-  "Akaun Client Lawyer"
+  "Akaun Client Lawyer",
+  "Akaun PJS"
 ];
 
 export const CATEGORIES = [
