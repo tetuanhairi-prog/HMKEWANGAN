@@ -123,7 +123,7 @@ const ReportModal: React.FC<Props> = ({ isOpen, onClose, transactions, year }) =
           <div className="relative group min-w-[200px]">
             <Layers className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
             <select 
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-10 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 appearance-none cursor-pointer"
+              className="w-full bg-gradient-to-b from-slate-50 to-white border border-slate-200 rounded-2xl pl-12 pr-10 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 appearance-none cursor-pointer shadow-sm hover:border-slate-300 transition-all duration-300"
               value={selectedAccount}
               onChange={(e) => setSelectedAccount(e.target.value)}
             >
@@ -137,7 +137,7 @@ const ReportModal: React.FC<Props> = ({ isOpen, onClose, transactions, year }) =
             <div className="relative group min-w-[180px] animate-in slide-in-from-left-4 duration-300">
               <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
               <select 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-10 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 appearance-none cursor-pointer"
+                className="w-full bg-gradient-to-b from-slate-50 to-white border border-slate-200 rounded-2xl pl-12 pr-10 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 appearance-none cursor-pointer shadow-sm hover:border-slate-300 transition-all duration-300"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
               >

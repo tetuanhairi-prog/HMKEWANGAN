@@ -57,15 +57,15 @@ const InvoiceModal: React.FC<Props> = ({ isOpen, onClose, invoices, onAddInvoice
   const getInputClass = (field: Extract<keyof typeof formData, string>) => {
     const isTouched = touched[field];
     const hasError = !!errors[field];
-    const base = "w-full bg-slate-50 border-2 rounded-[1.25rem] px-6 py-4.5 text-xs font-black uppercase tracking-widest transition-all duration-300 outline-none";
+    const base = "w-full bg-gradient-to-b from-slate-50 to-white border rounded-2xl px-6 py-4.5 text-xs font-black uppercase tracking-widest transition-all duration-300 outline-none shadow-sm hover:border-slate-300 placeholder:text-slate-400";
     
     if (hasError && isTouched) {
-      return `${base} border-rose-500 bg-rose-50/50 text-rose-900 focus:ring-8 focus:ring-rose-500/10`;
+      return `${base} border-rose-400 from-rose-50 text-rose-900 focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500`;
     }
     if (isTouched && !hasError && formData[field]) {
-      return `${base} border-emerald-500 bg-emerald-50/50 focus:border-emerald-500 focus:ring-8 focus:ring-emerald-500/10 text-slate-800`;
+      return `${base} border-emerald-400 from-emerald-50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 text-slate-800`;
     }
-    return `${base} border-slate-100 focus:bg-white focus:border-indigo-500 focus:ring-8 focus:ring-indigo-500/10 text-slate-800 shadow-inner`;
+    return `${base} border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-800`;
   };
 
   const handleSubmit = () => {
@@ -138,7 +138,7 @@ const InvoiceModal: React.FC<Props> = ({ isOpen, onClose, invoices, onAddInvoice
 
               <div className="space-y-2">
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Butiran Perkhidmatan</label>
-                <textarea placeholder="Penerangan kes / tugasan..." className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.25rem] px-6 py-5 text-xs font-black uppercase tracking-widest h-28 resize-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white outline-none transition-all text-slate-800 shadow-inner" value={formData.desc} onChange={e => handleChange('desc', e.target.value)} />
+                <textarea placeholder="Penerangan kes / tugasan..." className="w-full bg-gradient-to-b from-slate-50 to-white border border-slate-200 rounded-2xl px-6 py-5 text-xs font-black uppercase tracking-widest h-28 resize-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white outline-none transition-all duration-300 text-slate-800 shadow-sm hover:border-slate-300 placeholder:text-slate-400" value={formData.desc} onChange={e => handleChange('desc', e.target.value)} />
               </div>
 
               <div className="space-y-2">

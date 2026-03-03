@@ -85,7 +85,7 @@ const AccountStatementModal: React.FC<Props> = ({ isOpen, onClose, transactions 
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] ml-2">Pilih Akaun</label>
               <div className="relative group">
                 <Wallet className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-500 group-focus-within:rotate-12 transition-transform" strokeWidth={2.5} />
-                <select className="w-full pl-16 pr-12 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-700 outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner" value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)}>
+                <select className="w-full pl-16 pr-12 py-5 bg-gradient-to-b from-slate-50 to-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-700 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all duration-300 appearance-none cursor-pointer shadow-sm hover:border-slate-300" value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)}>
                   {ACCOUNTS.map(a => <option key={a} value={a}>{a.toUpperCase()}</option>)}
                 </select>
                 <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 pointer-events-none" />
@@ -97,7 +97,7 @@ const AccountStatementModal: React.FC<Props> = ({ isOpen, onClose, transactions 
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] ml-2">Bulan</label>
                 <div className="relative group">
                   <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-500 group-focus-within:rotate-12 transition-transform" strokeWidth={2.5} />
-                  <select className="w-full pl-16 pr-12 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-700 outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner" value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))}>
+                  <select className="w-full pl-16 pr-12 py-5 bg-gradient-to-b from-slate-50 to-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-700 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all duration-300 appearance-none cursor-pointer shadow-sm hover:border-slate-300" value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))}>
                     {MONTHS.map((m, i) => <option key={i} value={i}>{m.toUpperCase()}</option>)}
                   </select>
                   <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 pointer-events-none" />
@@ -106,7 +106,7 @@ const AccountStatementModal: React.FC<Props> = ({ isOpen, onClose, transactions 
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] ml-2">Tahun</label>
                 <div className="relative group">
-                   <select className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-[10px] font-black tracking-widest text-slate-700 outline-none focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all appearance-none cursor-pointer shadow-inner" value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))}>
+                   <select className="w-full px-8 py-5 bg-gradient-to-b from-slate-50 to-white border border-slate-200 rounded-2xl text-[10px] font-black tracking-widest text-slate-700 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all duration-300 appearance-none cursor-pointer shadow-sm hover:border-slate-300" value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))}>
                     {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                   <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 pointer-events-none" />

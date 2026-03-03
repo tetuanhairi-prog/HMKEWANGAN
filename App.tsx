@@ -379,7 +379,7 @@ const App: React.FC = () => {
               <input
                 type="password"
                 placeholder="••••••"
-                className={`w-full bg-slate-50 border-2 rounded-[1.5rem] px-8 py-6 text-center text-2xl tracking-[0.5em] font-black outline-none transition-all ${loginError ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-slate-100 focus:border-indigo-500 focus:bg-white focus:ring-[15px] focus:ring-indigo-500/5 text-slate-800'}`}
+                className={`w-full bg-gradient-to-b from-slate-50 to-white border rounded-2xl px-8 py-6 text-center text-2xl tracking-[0.5em] font-black outline-none transition-all duration-300 shadow-sm hover:border-slate-300 ${loginError ? 'border-rose-400 from-rose-50 text-rose-700 focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500' : 'border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-800'}`}
                 value={passwordInput}
                 onChange={(e) => { setPasswordInput(e.target.value); setLoginError(''); }}
                 autoFocus
@@ -517,7 +517,7 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="relative group">
                 <div className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-500 group-focus-within:scale-110 group-focus-within:rotate-12 transition-all"><Layers className="w-4.5 h-4.5" strokeWidth={2.5} /></div>
-                <select className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.25rem] px-16 py-5 font-black uppercase tracking-[0.2em] text-[10px] outline-none focus:border-indigo-500 focus:bg-white focus:ring-[15px] focus:ring-indigo-500/5 transition-all appearance-none cursor-pointer text-slate-700 shadow-inner" value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)}>
+                <select className="w-full bg-gradient-to-b from-slate-50 to-white border border-slate-200 rounded-2xl px-16 py-5 font-black uppercase tracking-[0.2em] text-[10px] outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-300 appearance-none cursor-pointer text-slate-700 shadow-sm hover:border-slate-300" value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)}>
                   <option value="all">Semua Akaun Firma</option>
                   {ACCOUNTS.map(a => <option key={a} value={a}>{a.toUpperCase()}</option>)}
                 </select>
@@ -526,13 +526,13 @@ const App: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative group">
-                   <select className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.25rem] px-8 py-5 font-black uppercase tracking-[0.2em] text-[10px] outline-none focus:border-indigo-500 focus:bg-white focus:ring-[15px] focus:ring-indigo-500/5 transition-all appearance-none cursor-pointer text-slate-700 shadow-inner" value={filterYear} onChange={(e) => setFilterYear(parseInt(e.target.value))}>
+                   <select className="w-full bg-gradient-to-b from-slate-50 to-white border border-slate-200 rounded-2xl px-8 py-5 font-black uppercase tracking-[0.2em] text-[10px] outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-300 appearance-none cursor-pointer text-slate-700 shadow-sm hover:border-slate-300" value={filterYear} onChange={(e) => setFilterYear(parseInt(e.target.value))}>
                     {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                   <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 pointer-events-none rotate-90" />
                 </div>
                 <div className="relative group">
-                  <select className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.25rem] px-8 py-5 font-black uppercase tracking-[0.2em] text-[10px] outline-none focus:border-indigo-500 focus:bg-white focus:ring-[15px] focus:ring-indigo-500/5 transition-all appearance-none cursor-pointer text-slate-700 shadow-inner" value={filterMonth} onChange={(e) => setFilterMonth(parseInt(e.target.value))}>
+                  <select className="w-full bg-gradient-to-b from-slate-50 to-white border border-slate-200 rounded-2xl px-8 py-5 font-black uppercase tracking-[0.2em] text-[10px] outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-300 appearance-none cursor-pointer text-slate-700 shadow-sm hover:border-slate-300" value={filterMonth} onChange={(e) => setFilterMonth(parseInt(e.target.value))}>
                     {MONTHS.map((m, i) => <option key={i} value={i}>{m.toUpperCase()}</option>)}
                   </select>
                   <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 pointer-events-none rotate-90" />
@@ -541,7 +541,7 @@ const App: React.FC = () => {
 
               <div className="relative group">
                 <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors"><Search className="w-4.5 h-4.5" strokeWidth={2.5} /></div>
-                <input type="text" placeholder="CARI TRANSAKSI..." className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.25rem] px-16 py-5 text-[10px] font-black uppercase tracking-[0.25em] outline-none focus:border-indigo-500 focus:bg-white focus:ring-[15px] focus:ring-indigo-500/5 transition-all shadow-inner text-slate-800 placeholder:text-slate-300" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <input type="text" placeholder="CARI TRANSAKSI..." className="w-full bg-gradient-to-b from-slate-50 to-white border border-slate-200 rounded-2xl px-16 py-5 text-[10px] font-black uppercase tracking-[0.25em] outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-300 shadow-sm hover:border-slate-300 text-slate-800 placeholder:text-slate-400" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
             </div>
 

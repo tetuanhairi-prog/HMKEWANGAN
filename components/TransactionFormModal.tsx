@@ -110,9 +110,9 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
   const isFormValid = Object.keys(validationErrors).length === 0;
 
   const getInputStatusClass = (field: Extract<keyof typeof formData, string>) => {
-    if (!touched[field]) return "border-slate-100 focus:border-indigo-500 focus:ring-indigo-500/5";
-    if (errors[field]) return "border-rose-500 bg-rose-50/30 text-rose-900 focus:border-rose-500 focus:ring-rose-500/10";
-    return "border-emerald-500 bg-emerald-50/30 focus:border-emerald-500 focus:ring-emerald-500/10";
+    if (!touched[field]) return "border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10";
+    if (errors[field]) return "border-rose-400 bg-gradient-to-b from-rose-50 to-white text-rose-900 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10";
+    return "border-emerald-400 bg-gradient-to-b from-emerald-50 to-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10";
   };
 
   const theme = isIncome ? {
@@ -133,7 +133,7 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
     ? ["Legal Fee", "Retainer", "Consultation", "Reimbursement"]
     : ["Filing Fee", "Office Supplies", "Utilities", "Mileage", "Salary", "Rental", "Printing"];
 
-  const inputBase = "w-full bg-slate-50 border-2 rounded-[1.25rem] px-6 py-4 pl-14 text-sm font-bold outline-none transition-all text-slate-800 shadow-inner placeholder:text-slate-300";
+  const inputBase = "w-full bg-gradient-to-b from-slate-50 to-white border rounded-2xl px-6 py-4 pl-14 text-sm font-bold outline-none transition-all duration-300 text-slate-800 shadow-sm hover:border-slate-300 placeholder:text-slate-400";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
@@ -180,7 +180,7 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
               </button>
             </div>
 
-            <div className={`p-8 rounded-[2.5rem] border-2 transition-all flex flex-col items-center relative shadow-sm ${getInputStatusClass('amount')} ${theme.bg}`}>
+            <div className={`p-8 rounded-3xl border transition-all duration-300 flex flex-col items-center relative shadow-sm ${getInputStatusClass('amount')} ${theme.bg}`}>
               <label className={`text-[10px] font-black uppercase mb-5 tracking-[0.2em] ${theme.text}`}>Jumlah Transaksi (RM)</label>
               <div className="flex items-center w-full justify-center">
                 <span className={`text-3xl font-black mr-4 ${errors.amount && touched.amount ? 'text-rose-300' : 'text-slate-300'}`}>RM</span>
@@ -316,7 +316,7 @@ const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initia
                 <textarea
                   rows={2}
                   placeholder="Masukkan butiran terperinci transaksi jika ada..."
-                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.25rem] px-6 py-5 pl-14 text-sm font-bold outline-none transition-all focus:bg-white focus:border-indigo-500 focus:ring-8 focus:ring-indigo-500/5 text-slate-800 resize-none shadow-inner placeholder:text-slate-300"
+                  className="w-full bg-gradient-to-b from-slate-50 to-white border border-slate-200 rounded-2xl px-6 py-5 pl-14 text-sm font-bold outline-none transition-all duration-300 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-800 resize-none shadow-sm hover:border-slate-300 placeholder:text-slate-400"
                   value={formData.details}
                   onChange={e => handleChange('details', e.target.value)}
                 />
